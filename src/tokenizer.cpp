@@ -73,19 +73,19 @@ tokenizer::tokenizer(const char* const source) {
 
         switch (current_char) {
             case '(':
-				add_static_token(1, token_type::left_paren); break;
+                add_static_token(1, token_type::left_paren); break;
             case ')':
-				add_static_token(1, token_type::right_paren); break;
+                add_static_token(1, token_type::right_paren); break;
             case '+':
-				add_static_token(1, token_type::plus); break;
+                add_static_token(1, token_type::plus); break;
             case '-':
-				add_static_token(1, token_type::minus); break;
+                add_static_token(1, token_type::minus); break;
             case '*':
-				add_static_token(1, token_type::star); break;
+                add_static_token(1, token_type::star); break;
             case '/':
-				add_static_token(1, token_type::forward_slash); break;
+                add_static_token(1, token_type::forward_slash); break;
             case '=':
-				add_static_token(1, token_type::equal); break;
+                add_static_token(1, token_type::equal); break;
             case '!':
                 if (*(current_ptr + 1) == '=')
                     add_static_token(2, token_type::bang_equal);
