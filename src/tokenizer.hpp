@@ -51,5 +51,3 @@ struct tokenizer {
 
     void add_string_token();
 };
-
-std::vector<token> tokenize(const char* const source);
