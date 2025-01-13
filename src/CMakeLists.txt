@@ -1,7 +1,10 @@
 target_sources(
     ${PROJECT_NAME}
     PRIVATE
+    compiler.cpp
+    compiler.hpp
     main.cpp
+    opcodes.hpp
     tokenizer.cpp
     tokenizer.hpp
 )

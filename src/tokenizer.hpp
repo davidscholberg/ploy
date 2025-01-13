@@ -21,6 +21,7 @@ enum class token_type {
     number,
     string,
     identifier,
+    eof,
 };
 
 struct token {
@@ -39,7 +40,7 @@ struct tokenizer {
 
     tokenizer(const char* const source);
 
-    std::string to_string();
+    std::string to_string() const;
 
     protected:
     const char* current_ptr;

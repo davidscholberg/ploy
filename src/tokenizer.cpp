@@ -3,7 +3,6 @@
 #include <stdexcept>
 #include <stdint.h>
 #include <string>
-#include <string_view>
 #include <vector>
 
 #include "tokenizer.hpp"
@@ -108,10 +107,12 @@ tokenizer::tokenizer(const char* const source) {
                 add_string_token(); break;
         }
     }
+
+    tokens.emplace_back(current_ptr, current_ptr, token_type::eof);
 }
 
-std::string tokenizer::to_string() {
-    std::string str = "[";
+std::string tokenizer::to_string() const {
+    std::string str = "tokens: [";
 
     for (const auto& t : tokens)
         str += std::format("{{\"{}\", {}}}, ", t.value, static_cast<int>(t.type));
