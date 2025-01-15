@@ -4,7 +4,7 @@
 
 enum class opcode : uint8_t {
     add,
-    constant_int,
+    constant,
     divide,
     multiply,
     negate,

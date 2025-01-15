@@ -5,8 +5,11 @@ target_sources(
     compiler.hpp
     main.cpp
     opcodes.hpp
+    overload.hpp
     tokenizer.cpp
     tokenizer.hpp
+    virtual_machine.cpp
+    virtual_machine.hpp
 )
 
 target_include_directories(

@@ -3,13 +3,16 @@
 #include <array>
 #include <stdint.h>
 #include <string>
+#include <variant>
 #include <vector>
 
 #include "opcodes.hpp"
 #include "tokenizer.hpp"
 
+using result_variant = std::variant<int64_t>;
+
 struct bytecode {
-    std::vector<int64_t> constant_ints;
+    std::vector<result_variant> constants;
     std::vector<uint8_t> code;
 
     std::string to_string() const;

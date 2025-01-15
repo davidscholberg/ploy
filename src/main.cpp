@@ -3,6 +3,7 @@
 
 #include "compiler.hpp"
 #include "tokenizer.hpp"
+#include "virtual_machine.hpp"
 
 int main() {
     auto statements = std::to_array({
@@ -17,5 +18,9 @@ int main() {
 
         const compiler c{t.tokens};
         std::print("{}\n", c.program.to_string());
+
+        virtual_machine vm;
+        vm.execute(c.program);
+        std::print("{}\n\n", vm.to_string());
     }
 }

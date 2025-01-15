@@ -3,20 +3,26 @@
 #include <limits>
 #include <stdexcept>
 #include <system_error>
+#include <variant>
 
 #include "compiler.hpp"
 #include "opcodes.hpp"
 
 std::string bytecode::to_string() const {
-    std::string str = "constant ints: [";
-    for (const auto& n : constant_ints)
-        str += std::format("{}, ", n);
+    std::string str = "constants: [";
+    for (const auto& c : constants)
+        str += std::visit(
+            [](const auto& v) {
+                return std::format("{}, ", v);
+            },
+            c
+        );
 
     str += "]\nbytecode: [";
     for (const auto& b : code)
         str += std::format("{}, ", b);
 
-    str += "]\n";
+    str += "]";
     return str;
 }
 
@@ -28,6 +34,8 @@ compiler::compiler(const std::vector<token>& tokens)
 
             compile_combination();
         }
+
+    program.code.emplace_back(static_cast<uint8_t>(opcode::ret));
 }
 
 void compiler::compile_combination() {
@@ -46,8 +54,8 @@ void compiler::compile_expression() {
 }
 
 void compiler::compile_int() {
-    if (program.constant_ints.size() == std::numeric_limits<uint8_t>::max())
-        throw std::runtime_error("exceeded max number of constant ints allowed");
+    if (program.constants.size() == std::numeric_limits<uint8_t>::max())
+        throw std::runtime_error("exceeded max number of constants allowed");
 
     const std::string_view& sv = current_token_ptr->value;
     int64_t int_value;
@@ -55,9 +63,9 @@ void compiler::compile_int() {
     if (ec != std::errc())
         throw std::runtime_error("couldn't parse int");
 
-    program.constant_ints.emplace_back(int_value);
-    program.code.emplace_back(static_cast<uint8_t>(opcode::constant_int));
-    program.code.emplace_back(program.constant_ints.size() - 1);
+    program.constants.emplace_back(int_value);
+    program.code.emplace_back(static_cast<uint8_t>(opcode::constant));
+    program.code.emplace_back(program.constants.size() - 1);
 
     current_token_ptr++;
 }
