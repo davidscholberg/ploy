@@ -7,8 +7,12 @@
 
 #include "tokenizer.hpp"
 
-static bool is_number_char(const char c) {
+static bool is_int_char(const char c) {
     return c >= '0' and c <= '9';
+}
+
+static bool is_number_char(const char c) {
+    return is_int_char(c) or c == '.';
 }
 
 static bool is_identifier_char(const char c) {
@@ -60,7 +64,7 @@ tokenizer::tokenizer(const char* const source) {
             continue;
         }
 
-        if (is_number_char(current_char)) {
+        if (is_int_char(current_char)) {
             add_dynamic_token<is_number_char>(token_type::number);
             continue;
         }

@@ -9,7 +9,7 @@
 #include "opcodes.hpp"
 #include "tokenizer.hpp"
 
-using result_variant = std::variant<int64_t>;
+using result_variant = std::variant<int64_t, double>;
 
 struct bytecode {
     std::vector<result_variant> constants;
@@ -28,7 +28,7 @@ struct compiler {
 
     void compile_combination();
     void compile_forward_slash();
-    void compile_int();
+    void compile_number();
     void compile_minus();
     void compile_plus();
     void compile_star();
@@ -56,7 +56,7 @@ struct compiler {
         &compiler::compile_error,
         &compiler::compile_error,
         &compiler::compile_error,
-        &compiler::compile_int,
+        &compiler::compile_number,
         &compiler::compile_error,
         &compiler::compile_error,
         &compiler::compile_error,

@@ -53,17 +53,30 @@ void compiler::compile_expression() {
     (this->*compile_func)();
 }
 
-void compiler::compile_int() {
+void compiler::compile_number() {
     if (program.constants.size() == std::numeric_limits<uint8_t>::max())
         throw std::runtime_error("exceeded max number of constants allowed");
 
     const std::string_view& sv = current_token_ptr->value;
-    int64_t int_value;
-    auto [ptr, ec] = std::from_chars(sv.data(), sv.data() + sv.size(), int_value);
-    if (ec != std::errc())
-        throw std::runtime_error("couldn't parse int");
 
-    program.constants.emplace_back(int_value);
+    if (sv.find(".") == std::string::npos) {
+        int64_t int_value;
+        auto [ptr, ec] = std::from_chars(sv.data(), sv.data() + sv.size(), int_value);
+
+        if (ec != std::errc())
+            throw std::runtime_error("couldn't parse int");
+
+        program.constants.emplace_back(int_value);
+    } else {
+        double double_value;
+        auto [ptr, ec] = std::from_chars(sv.data(), sv.data() + sv.size(), double_value);
+
+        if (ec != std::errc())
+            throw std::runtime_error("couldn't parse double");
+
+        program.constants.emplace_back(double_value);
+    }
+
     program.code.emplace_back(static_cast<uint8_t>(opcode::constant));
     program.code.emplace_back(program.constants.size() - 1);
 

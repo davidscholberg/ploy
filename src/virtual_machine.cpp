@@ -43,12 +43,20 @@ void virtual_machine::execute_binary_op() {
     if (stack.size() < 2)
         throw std::runtime_error("not enough operands on stack for binary op");
 
-    // This will eventually be expanded to handle floats and maybe some other types.
     constexpr overload visitor{
         [](const int64_t& a, const int64_t& b) {
             return result_variant{Op<int64_t>()(a, b)};
         },
-        []([[maybe_unused]] const auto& a, [[maybe_unused]] const auto& b) {
+        [](const int64_t& a, const double& b) {
+            return result_variant{Op<double>()(a, b)};
+        },
+        [](const double& a, const int64_t& b) {
+            return result_variant{Op<double>()(a, b)};
+        },
+        [](const double& a, const double& b) {
+            return result_variant{Op<double>()(a, b)};
+        },
+        []([[maybe_unused]] const auto& a, [[maybe_unused]] const auto& b) -> result_variant {
             throw std::runtime_error("unexpected type for binary op");
         },
     };
@@ -70,7 +78,10 @@ void virtual_machine::execute_unary_op() {
         [](const int64_t& a) {
             return result_variant{Op<int64_t>()(a)};
         },
-        []([[maybe_unused]] const auto& a) {
+        [](const double& a) {
+            return result_variant{Op<double>()(a)};
+        },
+        []([[maybe_unused]] const auto& a) -> result_variant {
             throw std::runtime_error("unexpected type for unary op");
         },
     };
