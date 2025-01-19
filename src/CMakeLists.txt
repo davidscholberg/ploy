@@ -1,10 +1,11 @@
 target_sources(
     ${PROJECT_NAME}
     PRIVATE
+    bytecode.cpp
+    bytecode.hpp
     compiler.cpp
     compiler.hpp
     main.cpp
-    opcodes.hpp
     overload.hpp
     tokenizer.cpp
     tokenizer.hpp

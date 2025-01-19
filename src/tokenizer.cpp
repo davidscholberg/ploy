@@ -1,4 +1,3 @@
-#include <cctype>
 #include <format>
 #include <stdexcept>
 #include <stdint.h>
@@ -7,35 +6,141 @@
 
 #include "tokenizer.hpp"
 
-static bool is_int_char(const char c) {
-    return c >= '0' and c <= '9';
+static bool is_whitespace(const char c) {
+    return c == ' ' or c == '\n';
 }
 
-static bool is_number_char(const char c) {
-    return is_int_char(c) or c == '.';
-}
-
-static bool is_identifier_char(const char c) {
+static bool is_delimiter(const char c) {
     return (
-        (c >= 'A' && c <= 'Z')
-        || (c >= 'a' && c <= 'z')
+        is_whitespace(c)
+        or c == '('
+        or c == ')'
+        or c == '"'
+        or c == ';'
     );
 }
 
-void tokenizer::add_static_token(size_t size, token_type type) {
+static bool is_eof(const char c) {
+    return c == 0;
+}
+
+static bool is_digit(const char c) {
+    return c >= '0' and c <= '9';
+}
+
+static bool is_numeric(const char c) {
+    return is_digit(c) or c == '.';
+}
+
+static bool is_special_initial(const char c) {
+    switch (c) {
+        case '!':
+        case '$':
+        case '%':
+        case '&':
+        case '*':
+        case '/':
+        case ':':
+        case '<':
+        case '=':
+        case '>':
+        case '?':
+        case '^':
+        case '_':
+        case '~':
+            return true;
+    };
+
+    return false;
+}
+
+static bool is_identifier_initial(const char c) {
+    return (
+        (c >= 'A' and c <= 'Z')
+        or (c >= 'a' and c <= 'z')
+        or is_special_initial(c)
+    );
+}
+
+static bool is_identifier_subsequent(const char c) {
+    return (
+        is_identifier_initial(c)
+        or is_digit(c)
+        or c == '+'
+        or c == '-'
+        or c == '.'
+        or c == '@'
+    );
+}
+
+void tokenizer::add_token(size_t size, token_type type) {
     tokens.emplace_back(current_ptr, size, type);
     current_ptr += size;
 }
 
-template <auto IsTokenChar>
-void tokenizer::add_dynamic_token(token_type type) {
-    const char* const token_start = current_ptr;
+void tokenizer::add_hash_token() {
+    const char* next_ptr = current_ptr + 1;
+
+    switch (*next_ptr) {
+        case 't':
+            add_token(2, token_type::boolean_true);
+            break;
+        case 'f':
+            add_token(2, token_type::boolean_false);
+            break;
+        case '\\':
+            current_ptr += 2;
+
+            if (is_eof(*current_ptr))
+                throw std::runtime_error("unexpected eof");
+
+            // TODO: expand this to include space and newline.
+            add_token(1, token_type::character);
+            break;
+        case 0:
+            throw std::runtime_error("unexpected eof");
+        default:
+            throw std::runtime_error("invalid character after #");
+    }
+}
+
+void tokenizer::add_minus_or_plus_token() {
+    const char* const next_ptr = current_ptr + 1;
+
+    if (is_numeric(*next_ptr))
+        add_number_token();
+    else if (is_delimiter(*next_ptr))
+        add_token(1, token_type::identifier);
+    else
+        throw std::runtime_error("invalid character after - or +");
+}
+
+void tokenizer::add_identifier_token() {
+    const char* token_start = current_ptr;
     current_ptr++;
 
-    while (*current_ptr != 0 && IsTokenChar(*current_ptr))
+    while (is_identifier_subsequent(*current_ptr))
         current_ptr++;
 
-    tokens.emplace_back(token_start, current_ptr, type);
+    if (is_eof(*current_ptr))
+        throw std::runtime_error("unexpected eof after identifier");
+
+    tokens.emplace_back(token_start, current_ptr, token_type::identifier);
+}
+
+void tokenizer::add_number_token() {
+    const char* token_start = current_ptr;
+    if (*token_start == '+')
+        token_start++;
+    current_ptr++;
+
+    while (is_numeric(*current_ptr))
+        current_ptr++;
+
+    if (is_eof(*current_ptr))
+        throw std::runtime_error("unexpected eof after number");
+
+    tokens.emplace_back(token_start, current_ptr, token_type::number);
 }
 
 void tokenizer::add_string_token() {
@@ -46,7 +151,7 @@ void tokenizer::add_string_token() {
     while (*current_ptr != 0 && *current_ptr != '"')
         current_ptr++;
 
-    if (*current_ptr == 0)
+    if (is_eof(*current_ptr))
         throw std::runtime_error("source ended with no closing quote");
 
     tokens.emplace_back(token_start, current_ptr, token_type::string);
@@ -59,56 +164,34 @@ tokenizer::tokenizer(const char* const source) {
     while (*current_ptr != 0) {
         const char current_char = *current_ptr;
 
-        if (std::isspace(current_char)) {
+        if (is_whitespace(current_char)) {
             current_ptr++;
-            continue;
-        }
-
-        if (is_int_char(current_char)) {
-            add_dynamic_token<is_number_char>(token_type::number);
-            continue;
-        }
-
-        if (is_identifier_char(current_char)) {
-            add_dynamic_token<is_identifier_char>(token_type::identifier);
             continue;
         }
 
         switch (current_char) {
             case '(':
-                add_static_token(1, token_type::left_paren); break;
+                add_token(1, token_type::left_paren); break;
             case ')':
-                add_static_token(1, token_type::right_paren); break;
-            case '+':
-                add_static_token(1, token_type::plus); break;
-            case '-':
-                add_static_token(1, token_type::minus); break;
-            case '*':
-                add_static_token(1, token_type::star); break;
-            case '/':
-                add_static_token(1, token_type::forward_slash); break;
-            case '=':
-                add_static_token(1, token_type::equal); break;
-            case '!':
-                if (*(current_ptr + 1) == '=')
-                    add_static_token(2, token_type::bang_equal);
-                else
-                    add_static_token(1, token_type::bang);
-                break;
-            case '<':
-                if (*(current_ptr + 1) == '=')
-                    add_static_token(2, token_type::bang_equal);
-                else
-                    add_static_token(1, token_type::bang);
-                break;
-            case '>':
-                if (*(current_ptr + 1) == '=')
-                    add_static_token(2, token_type::greater_equal);
-                else
-                    add_static_token(1, token_type::greater);
-                break;
+                add_token(1, token_type::right_paren); break;
+            case '\'':
+                add_token(1, token_type::single_quote); break;
+            case '.':
+                add_token(1, token_type::dot); break;
+            case '#':
+                add_hash_token(); break;
             case '"':
                 add_string_token(); break;
+            case '-':
+            case '+':
+                add_minus_or_plus_token(); break;
+            default:
+                if (is_numeric(current_char))
+                    add_number_token();
+                else if (is_identifier_initial(current_char))
+                    add_identifier_token();
+                else
+                    throw std::runtime_error("unexpected first character of token");
         }
     }
 

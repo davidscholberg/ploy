@@ -7,19 +7,13 @@
 enum class token_type {
     left_paren,
     right_paren,
-    plus,
-    minus,
-    star,
-    forward_slash,
-    equal,
-    bang,
-    less,
-    greater,
-    bang_equal,
-    less_equal,
-    greater_equal,
-    number,
+    single_quote,
+    dot,
+    boolean_true,
+    boolean_false,
+    character,
     string,
+    number,
     identifier,
     eof,
 };
@@ -45,10 +39,10 @@ struct tokenizer {
     protected:
     const char* current_ptr;
 
-    void add_static_token(size_t size, token_type type);
-
-    template <auto IsTokenChar>
-    void add_dynamic_token(token_type type);
-
+    void add_token(size_t size, token_type type);
+    void add_hash_token();
+    void add_minus_or_plus_token();
+    void add_identifier_token();
+    void add_number_token();
     void add_string_token();
 };
