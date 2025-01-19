@@ -6,9 +6,6 @@
 
 #include "bytecode.hpp"
 
-template <auto Op, uint8_t Identity, bool AllowNoArgs>
-void builtin_fold_left(void* vm_void_ptr, uint8_t argc);
-
 void builtin_divide(void* vm_void_ptr, uint8_t argc);
 void builtin_if(void* vm_void_ptr, uint8_t argc);
 void builtin_minus(void* vm_void_ptr, uint8_t argc);

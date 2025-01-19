@@ -7,7 +7,7 @@
 #include "virtual_machine.hpp"
 
 template <template <typename> typename Op, uint8_t Identity, bool AllowNoArgs>
-void builtin_fold_left(void* vm_void_ptr, uint8_t argc) {
+static void native_fold_left(void* vm_void_ptr, uint8_t argc) {
     virtual_machine* vm = static_cast<virtual_machine*>(vm_void_ptr);
 
     constexpr overload unary_visitor{
@@ -67,7 +67,7 @@ void builtin_fold_left(void* vm_void_ptr, uint8_t argc) {
 }
 
 void builtin_divide(void* vm_void_ptr, uint8_t argc) {
-    builtin_fold_left<std::divides, 1, false>(vm_void_ptr, argc);
+    native_fold_left<std::divides, 1, false>(vm_void_ptr, argc);
 }
 
 // TODO: this should not be a procedure call but rather a special form that conditionally evaluates
@@ -103,11 +103,11 @@ void builtin_if(void* vm_void_ptr, uint8_t argc) {
 }
 
 void builtin_minus(void* vm_void_ptr, uint8_t argc) {
-    builtin_fold_left<std::minus, 0, false>(vm_void_ptr, argc);
+    native_fold_left<std::minus, 0, false>(vm_void_ptr, argc);
 }
 
 void builtin_multiply(void* vm_void_ptr, uint8_t argc) {
-    builtin_fold_left<std::multiplies, 1, true>(vm_void_ptr, argc);
+    native_fold_left<std::multiplies, 1, true>(vm_void_ptr, argc);
 }
 
 void builtin_odd(void* vm_void_ptr, uint8_t argc) {
@@ -131,7 +131,7 @@ void builtin_odd(void* vm_void_ptr, uint8_t argc) {
 }
 
 void builtin_plus(void* vm_void_ptr, uint8_t argc) {
-    builtin_fold_left<std::plus, 0, true>(vm_void_ptr, argc);
+    native_fold_left<std::plus, 0, true>(vm_void_ptr, argc);
 }
 
 void virtual_machine::execute(const bytecode& program) {
