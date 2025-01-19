@@ -11,6 +11,7 @@ using builtin_procedure = void (*)(void*, uint8_t);
 using result_variant = std::variant<
     int64_t,
     double,
+    bool,
     builtin_procedure
 >;
 

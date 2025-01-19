@@ -78,10 +78,10 @@ void builtin_if(void* vm_void_ptr, uint8_t argc) {
     virtual_machine* vm = static_cast<virtual_machine*>(vm_void_ptr);
 
     constexpr overload unary_visitor{
-        // TODO: This should be done with actual booleans rather than ints.
-        [](const int64_t& a) -> bool {
-            return a != 0;
+        [](const bool& a) -> bool {
+            return a;
         },
+        // Any value that's not explicitly a boolean false is considered true.
         [](const auto& a) -> bool {
             return true;
         },
@@ -115,7 +115,6 @@ void builtin_odd(void* vm_void_ptr, uint8_t argc) {
 
     constexpr overload unary_visitor{
         [](const int64_t& a) {
-            // TODO: add boolean type to result_variant
             return result_variant{a % 2 != 0};
         },
         []([[maybe_unused]] const auto& a) -> result_variant {

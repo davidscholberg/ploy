@@ -14,6 +14,7 @@ struct compiler {
     protected:
     const token* current_token_ptr;
 
+    void compile_boolean();
     void compile_builtin_procedure();
     void compile_expression();
     void compile_identifier();

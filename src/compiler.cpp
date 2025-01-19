@@ -17,6 +17,15 @@ compiler::compiler(const std::vector<token>& tokens)
     program.code.emplace_back(static_cast<uint8_t>(opcode::ret));
 }
 
+void compiler::compile_boolean() {
+    uint8_t constant_index = program.add_constant(current_token_ptr->type == token_type::boolean_true);
+
+    program.code.emplace_back(static_cast<uint8_t>(opcode::push_constant));
+    program.code.emplace_back(constant_index);
+
+    current_token_ptr++;
+}
+
 void compiler::compile_builtin_procedure() {
     current_token_ptr++;
     const auto* procedure_expression_start = current_token_ptr;
@@ -71,6 +80,10 @@ void compiler::compile_expression() {
             break;
         case token_type::identifier:
             compile_identifier();
+            break;
+        case token_type::boolean_true:
+        case token_type::boolean_false:
+            compile_boolean();
             break;
         case token_type::left_paren:
             // TODO: expand to handle special forms and user defined procedure calls.
