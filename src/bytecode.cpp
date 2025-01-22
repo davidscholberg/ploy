@@ -20,11 +20,30 @@ uint8_t bytecode::add_constant(const result_variant& new_constant) {
     return i;
 }
 
+void bytecode::backpatch_jump(const size_t backpatch_index) {
+    const size_t jump_size = code.size() - backpatch_index;
+
+    if (jump_size > std::numeric_limits<jump_size_type>::max())
+        throw std::runtime_error("jump size is too large for its type");
+
+    aligned_write<jump_size_type>(jump_size, code.data() + backpatch_index);
+}
+
 const result_variant& bytecode::get_constant(uint8_t index) const {
     if (index >= constants.size())
         throw std::runtime_error("constant index out of bounds");
 
     return constants[index];
+}
+
+size_t bytecode::prepare_backpatch_jump(const opcode jump_type) {
+    code.emplace_back(static_cast<uint8_t>(jump_type));
+
+    const size_t backpatch_index = code.size();
+
+    code.resize(code.size() + get_aligned_access_size<jump_size_type>(&(code.back()) + 1));
+
+    return backpatch_index;
 }
 
 std::string bytecode::to_string() const {

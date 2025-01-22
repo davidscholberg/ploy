@@ -6,6 +6,16 @@
 #include "overload.hpp"
 #include "virtual_machine.hpp"
 
+static constexpr overload boolean_eval_visitor{
+    [](const bool& a) -> bool {
+        return a;
+    },
+    // Any value that's not explicitly a boolean false is considered true.
+    [](const auto& a) -> bool {
+        return true;
+    },
+};
+
 template <template <typename> typename Op, uint8_t Identity, bool AllowNoArgs>
 static void native_fold_left(void* vm_void_ptr, uint8_t argc) {
     virtual_machine* vm = static_cast<virtual_machine*>(vm_void_ptr);
@@ -70,38 +80,6 @@ void builtin_divide(void* vm_void_ptr, uint8_t argc) {
     native_fold_left<std::divides, 1, false>(vm_void_ptr, argc);
 }
 
-// TODO: this should not be a procedure call but rather a special form that conditionally evaluates
-// the consequent and alternate (i.e. second and third expression args). Need to add conditional
-// bytecode jumps for that (which also means we'll probably need to start caring about the bytecode
-// array alignment assuming we'll need to jump more than 255 bytes at a time).
-void builtin_if(void* vm_void_ptr, uint8_t argc) {
-    virtual_machine* vm = static_cast<virtual_machine*>(vm_void_ptr);
-
-    constexpr overload unary_visitor{
-        [](const bool& a) -> bool {
-            return a;
-        },
-        // Any value that's not explicitly a boolean false is considered true.
-        [](const auto& a) -> bool {
-            return true;
-        },
-    };
-
-    if (argc != 3)
-        throw std::runtime_error("procedure can only take three args");
-
-    size_t alternate_i = vm->stack.size() - 1;
-    size_t consequent_i = alternate_i - 1;
-    size_t cond_i = alternate_i - 2;
-
-    if (std::visit(unary_visitor, vm->stack[cond_i]))
-        vm->stack[cond_i] = vm->stack[consequent_i];
-    else
-        vm->stack[cond_i] = vm->stack[alternate_i];
-
-    vm->stack.erase(vm->stack.end() - 2, vm->stack.end());
-}
-
 void builtin_minus(void* vm_void_ptr, uint8_t argc) {
     native_fold_left<std::minus, 0, false>(vm_void_ptr, argc);
 }
@@ -146,6 +124,24 @@ void virtual_machine::execute(const bytecode& program) {
                 instruction_ptr++;
                 stack.emplace_back(program.get_constant(*instruction_ptr));
                 break;
+            case static_cast<uint8_t>(opcode::jump_forward_if_not):
+                if (stack.empty())
+                    throw std::runtime_error("stack empty for conditional jump");
+
+                instruction_ptr++;
+
+                if (!std::visit(boolean_eval_visitor, stack.back()))
+                    instruction_ptr += program.aligned_read<bytecode::jump_size_type>(instruction_ptr);
+                else
+                    instruction_ptr += get_aligned_access_size<bytecode::jump_size_type>(instruction_ptr);
+
+                stack.pop_back();
+
+                continue;
+            case static_cast<uint8_t>(opcode::jump_forward):
+                instruction_ptr++;
+                instruction_ptr += program.aligned_read<bytecode::jump_size_type>(instruction_ptr);
+                continue;
             case static_cast<uint8_t>(opcode::ret):
                 return;
         }

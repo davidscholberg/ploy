@@ -7,7 +7,6 @@
 #include "bytecode.hpp"
 
 void builtin_divide(void* vm_void_ptr, uint8_t argc);
-void builtin_if(void* vm_void_ptr, uint8_t argc);
 void builtin_minus(void* vm_void_ptr, uint8_t argc);
 void builtin_multiply(void* vm_void_ptr, uint8_t argc);
 void builtin_odd(void* vm_void_ptr, uint8_t argc);
@@ -15,7 +14,6 @@ void builtin_plus(void* vm_void_ptr, uint8_t argc);
 
 inline const std::unordered_map<std::string_view, builtin_procedure> bp_name_to_ptr{
     {"/", builtin_divide},
-    {"if", builtin_if},
     {"-", builtin_minus},
     {"*", builtin_multiply},
     {"odd?", builtin_odd},
@@ -32,8 +30,4 @@ struct virtual_machine {
     const uint8_t* instruction_ptr;
 
     void execute_call();
-    template <template <typename> typename Op>
-    void execute_binary_op();
-    template <template <typename> typename Op>
-    void execute_unary_op();
 };

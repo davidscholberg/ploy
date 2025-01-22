@@ -27,7 +27,6 @@ void compiler::compile_boolean() {
 }
 
 void compiler::compile_builtin_procedure() {
-    current_token_ptr++;
     const auto* procedure_expression_start = current_token_ptr;
 
     // skip over procedure expression for now
@@ -86,8 +85,14 @@ void compiler::compile_expression() {
             compile_boolean();
             break;
         case token_type::left_paren:
-            // TODO: expand to handle special forms and user defined procedure calls.
-            compile_builtin_procedure();
+            current_token_ptr++;
+
+            // TODO: maybe use a map for special forms if there's enough of them.
+            if (current_token_ptr->value == "if")
+                compile_if();
+            else
+                compile_builtin_procedure();
+
             break;
         default:
             throw std::runtime_error(std::format("unexpected token: {}", static_cast<uint8_t>(current_token_ptr->type)));
@@ -105,6 +110,41 @@ void compiler::compile_identifier() {
     program.code.emplace_back(constant_index);
 
     current_token_ptr++;
+}
+
+void compiler::compile_if() {
+    current_token_ptr++;
+
+    // compile test
+    compile_expression();
+
+    // compile conditional jump and leave space for jump offset
+    const size_t first_backpatch_index = program.prepare_backpatch_jump(opcode::jump_forward_if_not);
+
+    // compile consequent
+    compile_expression();
+
+    if (eof())
+        throw std::runtime_error("unexpected eof after if consequent");
+
+    // if there's no alternate, backpatch the first jump, advance token, and we're done.
+    if (current_token_ptr->type == token_type::right_paren) {
+        program.backpatch_jump(first_backpatch_index);
+        consume_token(token_type::right_paren);
+        return;
+    }
+
+    // if there's an alternate, prepare a second backpatch jump (unconditional), backpatch the first
+    // jump, compile alternate, backpatch second jump, advance token, bye bye.
+    const size_t second_backpatch_index = program.prepare_backpatch_jump(opcode::jump_forward);
+    program.backpatch_jump(first_backpatch_index);
+
+    // compile alternate
+    compile_expression();
+
+    program.backpatch_jump(second_backpatch_index);
+
+    consume_token(token_type::right_paren);
 }
 
 void compiler::compile_number() {
