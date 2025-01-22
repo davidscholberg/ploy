@@ -1,10 +1,12 @@
 #include <format>
 #include <limits>
 #include <stdexcept>
+#include <unordered_map>
 #include <variant>
 
 #include "bytecode.hpp"
 #include "overload.hpp"
+#include "virtual_machine.hpp"
 
 uint8_t bytecode::add_constant(const result_variant& new_constant) {
     if (constants.size() == std::numeric_limits<uint8_t>::max())
@@ -27,6 +29,85 @@ void bytecode::backpatch_jump(const size_t backpatch_index) {
         throw std::runtime_error("jump size is too large for its type");
 
     aligned_write<jump_size_type>(jump_size, code.data() + backpatch_index);
+}
+
+std::string bytecode::disassemble() const {
+    std::unordered_map<builtin_procedure, std::string_view> bp_ptr_to_name;
+    for (const auto& [k, v] : bp_name_to_ptr)
+        bp_ptr_to_name[v] = k;
+
+    const overload result_variant_formatter{
+        [&bp_ptr_to_name](const builtin_procedure& v) {
+            if (!bp_ptr_to_name.contains(v))
+                throw std::runtime_error("builtin procedure not found by address");
+            return std::format("bp: {}", bp_ptr_to_name[v]);
+        },
+        [](const auto& v) {
+            return std::format("{}", v);
+        },
+    };
+
+    const uint8_t* instruction_ptr = code.data();
+
+    std::string str;
+
+    while (instruction_ptr - code.data() < code.size()) {
+        switch (*instruction_ptr) {
+            case static_cast<uint8_t>(opcode::call):
+                str += std::format(
+                    "{:>4}: {:<20} with {} args\n",
+                    instruction_ptr - code.data(),
+                    "call",
+                    *(instruction_ptr + 1)
+                );
+
+                instruction_ptr += 2;
+                break;
+            case static_cast<uint8_t>(opcode::push_constant):
+                str += std::format(
+                    "{:>4}: {:<20} {}\n",
+                    instruction_ptr - code.data(),
+                    "push_constant",
+                    std::visit(result_variant_formatter, constants[*(instruction_ptr + 1)])
+                );
+
+                instruction_ptr += 2;
+                break;
+            case static_cast<uint8_t>(opcode::jump_forward_if_not):
+                str += std::format(
+                    "{:>4}: {:<20} {} bytes\n",
+                    instruction_ptr - code.data(),
+                    "jump_forward_if_not",
+                    aligned_read<bytecode::jump_size_type>(instruction_ptr + 1) + 1
+                );
+
+                instruction_ptr++;
+                instruction_ptr += get_aligned_access_size<bytecode::jump_size_type>(instruction_ptr);
+                break;
+            case static_cast<uint8_t>(opcode::jump_forward):
+                str += std::format(
+                    "{:>4}: {:<20} {} bytes\n",
+                    instruction_ptr - code.data(),
+                    "jump_forward",
+                    aligned_read<bytecode::jump_size_type>(instruction_ptr + 1) + 1
+                );
+
+                instruction_ptr++;
+                instruction_ptr += get_aligned_access_size<bytecode::jump_size_type>(instruction_ptr);
+                break;
+            case static_cast<uint8_t>(opcode::ret):
+                str += std::format(
+                    "{:>4}: {:<20}\n",
+                    instruction_ptr - code.data(),
+                    "ret"
+                );
+
+                instruction_ptr++;
+                break;
+        }
+    }
+
+    return str;
 }
 
 const result_variant& bytecode::get_constant(uint8_t index) const {

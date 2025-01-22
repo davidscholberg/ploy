@@ -62,6 +62,7 @@ struct bytecode {
         *get_aligned_ptr<T>(ptr) = value;
     }
     void backpatch_jump(const size_t jump_size_index);
+    std::string disassemble() const;
     const result_variant& get_constant(uint8_t index) const;
     size_t prepare_backpatch_jump(const opcode jump_type);
     std::string to_string() const;

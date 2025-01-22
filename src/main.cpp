@@ -16,11 +16,12 @@ int main() {
     });
 
     for (const auto& s : statements) {
+        std::print("source: {}\n", s);
         const tokenizer t{s};
         std::print("{}\n", t.to_string());
 
         const compiler c{t.tokens};
-        std::print("{}\n", c.program.to_string());
+        std::print("{}", c.program.disassemble());
 
         virtual_machine vm;
         vm.execute(c.program);
