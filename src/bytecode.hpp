@@ -19,12 +19,12 @@ using result_variant = std::variant<
 
 enum class opcode : uint8_t {
     call,
+    halt,
     jump_back,
     jump_back_if_not,
     jump_forward,
     jump_forward_if_not,
     push_constant,
-    ret,
 };
 
 template <typename T>

@@ -104,10 +104,10 @@ std::string bytecode::disassemble() const {
                 instruction_ptr++;
                 instruction_ptr += get_aligned_access_size<bytecode::jump_size_type>(instruction_ptr);
                 break;
-            case static_cast<uint8_t>(opcode::ret):
+            case static_cast<uint8_t>(opcode::halt):
                 str += disassembly_line_formatter(
                     instruction_ptr - code.data(),
-                    "ret",
+                    "halt",
                     ""
                 );
 

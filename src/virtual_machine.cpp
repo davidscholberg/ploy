@@ -142,7 +142,7 @@ void virtual_machine::execute(const bytecode& program) {
                 instruction_ptr++;
                 instruction_ptr += program.aligned_read<bytecode::jump_size_type>(instruction_ptr);
                 continue;
-            case static_cast<uint8_t>(opcode::ret):
+            case static_cast<uint8_t>(opcode::halt):
                 return;
         }
 

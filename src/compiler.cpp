@@ -14,7 +14,7 @@ compiler::compiler(const std::vector<token>& tokens)
             compile_expression();
         }
 
-    program.code.emplace_back(static_cast<uint8_t>(opcode::ret));
+    program.code.emplace_back(static_cast<uint8_t>(opcode::halt));
 }
 
 void compiler::compile_boolean() {
