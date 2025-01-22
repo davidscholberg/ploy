@@ -47,6 +47,19 @@ std::string bytecode::disassemble() const {
         },
     };
 
+    constexpr auto disassembly_line_formatter = [](
+        const auto offset,
+        const auto opcode_name,
+        const auto additional_info
+    ) {
+        return std::format(
+            "{:>4}: {:<20} {}\n",
+            offset,
+            opcode_name,
+            additional_info
+        );
+    };
+
     const uint8_t* instruction_ptr = code.data();
 
     std::string str;
@@ -54,18 +67,16 @@ std::string bytecode::disassemble() const {
     while (instruction_ptr - code.data() < code.size()) {
         switch (*instruction_ptr) {
             case static_cast<uint8_t>(opcode::call):
-                str += std::format(
-                    "{:>4}: {:<20} with {} args\n",
+                str += disassembly_line_formatter(
                     instruction_ptr - code.data(),
                     "call",
-                    *(instruction_ptr + 1)
+                    std::format("with {} args", *(instruction_ptr + 1))
                 );
 
                 instruction_ptr += 2;
                 break;
             case static_cast<uint8_t>(opcode::push_constant):
-                str += std::format(
-                    "{:>4}: {:<20} {}\n",
+                str += disassembly_line_formatter(
                     instruction_ptr - code.data(),
                     "push_constant",
                     std::visit(result_variant_formatter, constants[*(instruction_ptr + 1)])
@@ -74,32 +85,30 @@ std::string bytecode::disassemble() const {
                 instruction_ptr += 2;
                 break;
             case static_cast<uint8_t>(opcode::jump_forward_if_not):
-                str += std::format(
-                    "{:>4}: {:<20} {} bytes\n",
+                str += disassembly_line_formatter(
                     instruction_ptr - code.data(),
                     "jump_forward_if_not",
-                    aligned_read<bytecode::jump_size_type>(instruction_ptr + 1) + 1
+                    std::format("{} bytes", aligned_read<bytecode::jump_size_type>(instruction_ptr + 1) + 1)
                 );
 
                 instruction_ptr++;
                 instruction_ptr += get_aligned_access_size<bytecode::jump_size_type>(instruction_ptr);
                 break;
             case static_cast<uint8_t>(opcode::jump_forward):
-                str += std::format(
-                    "{:>4}: {:<20} {} bytes\n",
+                str += disassembly_line_formatter(
                     instruction_ptr - code.data(),
                     "jump_forward",
-                    aligned_read<bytecode::jump_size_type>(instruction_ptr + 1) + 1
+                    std::format("{} bytes", aligned_read<bytecode::jump_size_type>(instruction_ptr + 1) + 1)
                 );
 
                 instruction_ptr++;
                 instruction_ptr += get_aligned_access_size<bytecode::jump_size_type>(instruction_ptr);
                 break;
             case static_cast<uint8_t>(opcode::ret):
-                str += std::format(
-                    "{:>4}: {:<20}\n",
+                str += disassembly_line_formatter(
                     instruction_ptr - code.data(),
-                    "ret"
+                    "ret",
+                    ""
                 );
 
                 instruction_ptr++;
