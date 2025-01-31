@@ -3,19 +3,11 @@
 #include <stdexcept>
 #include <stdint.h>
 #include <string>
-#include <variant>
 #include <type_traits>
 #include <unordered_map>
 #include <vector>
 
-using builtin_procedure = void (*)(void*, uint8_t);
-
-using result_variant = std::variant<
-    int64_t,
-    double,
-    bool,
-    builtin_procedure
->;
+#include "scheme_value.hpp"
 
 enum class opcode : uint8_t {
     call,
@@ -25,6 +17,7 @@ enum class opcode : uint8_t {
     jump_forward,
     jump_forward_if_not,
     push_constant,
+    push_frame_index,
 };
 
 template <typename T>
@@ -52,7 +45,7 @@ struct bytecode {
 
     std::vector<uint8_t> code;
 
-    uint8_t add_constant(const result_variant& new_constant);
+    uint8_t add_constant(const scheme_value& new_constant);
     template <typename T>
     T aligned_read(const uint8_t* const ptr) const {
         return *get_aligned_ptr<const T>(ptr);
@@ -63,13 +56,13 @@ struct bytecode {
     }
     void backpatch_jump(const size_t jump_size_index);
     std::string disassemble() const;
-    const result_variant& get_constant(uint8_t index) const;
+    const scheme_value& get_constant(uint8_t index) const;
     size_t prepare_backpatch_jump(const opcode jump_type);
     std::string to_string() const;
 
     protected:
-    std::vector<result_variant> constants;
-    std::unordered_map<result_variant, uint8_t> constant_to_index_map;
+    std::vector<scheme_value> constants;
+    std::unordered_map<scheme_value, uint8_t> constant_to_index_map;
 
     template <typename T, typename U>
     requires (

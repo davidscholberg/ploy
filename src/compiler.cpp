@@ -27,49 +27,21 @@ void compiler::compile_boolean() {
 }
 
 void compiler::compile_builtin_procedure() {
-    const auto* procedure_expression_start = current_token_ptr;
+    program.code.emplace_back(static_cast<uint8_t>(opcode::push_frame_index));
 
-    // skip over procedure expression for now
-    if (current_token_ptr->type == token_type::left_paren) {
-        size_t paren_depth = 1;
-
-        current_token_ptr++;
-        while (!eof() and paren_depth != 0) {
-            if (current_token_ptr->type == token_type::left_paren)
-                paren_depth++;
-            else if (current_token_ptr->type == token_type::right_paren)
-                paren_depth--;
-            current_token_ptr++;
-        }
-    } else {
-        current_token_ptr++;
-    }
-
-    if (eof())
-        throw std::runtime_error("unexpected eof in procedure call expression");
+    // compile procedure expression
+    compile_expression();
 
     // compile procedure args
-    uint8_t argc = 0;
-    while (!eof() and current_token_ptr->type != token_type::right_paren) {
+    while (!eof() and current_token_ptr->type != token_type::right_paren)
         compile_expression();
-        if (argc == std::numeric_limits<uint8_t>::max())
-            throw std::runtime_error("exceeded max arg count for procedure");
-        argc++;
-    }
 
     if (eof())
         throw std::runtime_error("unexpected eof in procedure call expression");
 
     current_token_ptr++;
-    const auto* post_expression_ptr = current_token_ptr;
-
-    // go back and compile procedure expression
-    current_token_ptr = procedure_expression_start;
-    compile_expression();
-    current_token_ptr = post_expression_ptr;
 
     program.code.emplace_back(static_cast<uint8_t>(opcode::call));
-    program.code.emplace_back(argc);
 }
 
 void compiler::compile_expression() {

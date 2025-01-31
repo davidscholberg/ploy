@@ -22,37 +22,37 @@ static void native_fold_left(void* vm_void_ptr, uint8_t argc) {
 
     constexpr overload unary_visitor{
         [](const int64_t& a) {
-            return result_variant{Op<int64_t>()(Identity, a)};
+            return scheme_value{Op<int64_t>()(Identity, a)};
         },
         [](const double& a) {
-            return result_variant{Op<double>()(Identity, a)};
+            return scheme_value{Op<double>()(Identity, a)};
         },
-        []([[maybe_unused]] const auto& a) -> result_variant {
+        []([[maybe_unused]] const auto& a) -> scheme_value {
             throw std::runtime_error("unexpected type for unary op");
         },
     };
 
     constexpr overload binary_visitor{
         [](const int64_t& a, const int64_t& b) {
-            return result_variant{Op<int64_t>()(a, b)};
+            return scheme_value{Op<int64_t>()(a, b)};
         },
         [](const int64_t& a, const double& b) {
-            return result_variant{Op<double>()(a, b)};
+            return scheme_value{Op<double>()(a, b)};
         },
         [](const double& a, const int64_t& b) {
-            return result_variant{Op<double>()(a, b)};
+            return scheme_value{Op<double>()(a, b)};
         },
         [](const double& a, const double& b) {
-            return result_variant{Op<double>()(a, b)};
+            return scheme_value{Op<double>()(a, b)};
         },
-        []([[maybe_unused]] const auto& a, [[maybe_unused]] const auto& b) -> result_variant {
+        []([[maybe_unused]] const auto& a, [[maybe_unused]] const auto& b) -> scheme_value {
             throw std::runtime_error("unexpected type for binary op");
         },
     };
 
     if constexpr (AllowNoArgs) {
         if (argc == 0) {
-            vm->stack.emplace_back(Identity);
+            vm->stack[vm->stack.size() - 1] = Identity;
             return;
         }
     } else {
@@ -63,17 +63,18 @@ static void native_fold_left(void* vm_void_ptr, uint8_t argc) {
     size_t last_i = vm->stack.size() - 1;
 
     if (argc == 1) {
-        vm->stack[last_i] = std::visit(unary_visitor, vm->stack[last_i]);
+        vm->stack[last_i - 1] = std::visit(unary_visitor, vm->stack[last_i]);
     } else {
         size_t first_i = last_i + 1 - argc;
 
-        result_variant result = vm->stack[first_i];
+        scheme_value result = vm->stack[first_i];
         for (size_t i = first_i + 1; i <= last_i; i++)
             result = std::visit(binary_visitor, result, vm->stack[i]);
 
-        vm->stack[first_i] = result;
-        vm->stack.erase(vm->stack.end() - argc + 1, vm->stack.end());
+        vm->stack[first_i - 1] = result;
     }
+
+    vm->pop_excess(1);
 }
 
 void builtin_divide(void* vm_void_ptr, uint8_t argc) {
@@ -93,9 +94,9 @@ void builtin_odd(void* vm_void_ptr, uint8_t argc) {
 
     constexpr overload unary_visitor{
         [](const int64_t& a) {
-            return result_variant{a % 2 != 0};
+            return scheme_value{a % 2 != 0};
         },
-        []([[maybe_unused]] const auto& a) -> result_variant {
+        []([[maybe_unused]] const auto& a) -> scheme_value {
             throw std::runtime_error("unexpected type for unary op");
         },
     };
@@ -105,7 +106,8 @@ void builtin_odd(void* vm_void_ptr, uint8_t argc) {
 
     size_t last_i = vm->stack.size() - 1;
 
-    vm->stack[last_i] = std::visit(unary_visitor, vm->stack[last_i]);
+    vm->stack[last_i - 1] = std::visit(unary_visitor, vm->stack[last_i]);
+    vm->pop_excess(1);
 }
 
 void builtin_plus(void* vm_void_ptr, uint8_t argc) {
@@ -123,6 +125,9 @@ void virtual_machine::execute(const bytecode& program) {
             case static_cast<uint8_t>(opcode::push_constant):
                 instruction_ptr++;
                 stack.emplace_back(program.get_constant(*instruction_ptr));
+                break;
+            case static_cast<uint8_t>(opcode::push_frame_index):
+                call_frame_stack.emplace_back(stack.size(), nullptr);
                 break;
             case static_cast<uint8_t>(opcode::jump_forward_if_not):
                 if (stack.empty())
@@ -151,22 +156,32 @@ void virtual_machine::execute(const bytecode& program) {
 }
 
 void virtual_machine::execute_call() {
+    // TODO: when we add lambdas, we'll need to handle the return addr of the call frame here
+
     if (stack.empty())
         throw std::runtime_error("stack empty for procedure call");
 
-    instruction_ptr++;
-    uint8_t argc = *instruction_ptr;
+    if (call_frame_stack.empty())
+        throw std::runtime_error("call frame stack empty for procedure call");
 
-    if (argc > stack.size() - 1)
-        throw std::runtime_error("not enough procedure args on stack");
+    const call_frame& current_call_frame = call_frame_stack.back();
+    size_t argc = stack.size() - 1 - current_call_frame.frame_index;
+    if (argc > std::numeric_limits<uint8_t>::max())
+        throw std::runtime_error("exceeded max number of args allowed");
 
-    const auto bp_variant = stack.back();
+    const auto bp_variant = stack[current_call_frame.frame_index];
     if (const auto* bp_ptr = std::get_if<builtin_procedure>(&bp_variant)) {
-        stack.pop_back();
         (*bp_ptr)(this, argc);
     } else {
         throw std::runtime_error("expected builtin procedure on stack top");
     }
+
+    call_frame_stack.pop_back();
+}
+
+void virtual_machine::pop_excess(const size_t return_value_count) {
+    // TODO: no clue if this is correct for cases when the return value count > argc + 1
+    stack.erase(stack.begin() + call_frame_stack.back().frame_index + return_value_count, stack.end());
 }
 
 std::string virtual_machine::to_string() const {

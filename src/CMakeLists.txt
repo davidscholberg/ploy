@@ -7,6 +7,7 @@ target_sources(
     compiler.hpp
     main.cpp
     overload.hpp
+    scheme_value.hpp
     tokenizer.cpp
     tokenizer.hpp
     virtual_machine.cpp

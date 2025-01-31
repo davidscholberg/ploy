@@ -8,7 +8,7 @@
 #include "overload.hpp"
 #include "virtual_machine.hpp"
 
-uint8_t bytecode::add_constant(const result_variant& new_constant) {
+uint8_t bytecode::add_constant(const scheme_value& new_constant) {
     if (constants.size() == std::numeric_limits<uint8_t>::max())
         throw std::runtime_error("exceeded max number of constants allowed");
 
@@ -36,7 +36,7 @@ std::string bytecode::disassemble() const {
     for (const auto& [k, v] : bp_name_to_ptr)
         bp_ptr_to_name[v] = k;
 
-    const overload result_variant_formatter{
+    const overload scheme_value_formatter{
         [&bp_ptr_to_name](const builtin_procedure& v) {
             if (!bp_ptr_to_name.contains(v))
                 throw std::runtime_error("builtin procedure not found by address");
@@ -61,6 +61,7 @@ std::string bytecode::disassemble() const {
     };
 
     const uint8_t* instruction_ptr = code.data();
+    size_t frame_index_count = 0;
 
     std::string str;
 
@@ -70,19 +71,30 @@ std::string bytecode::disassemble() const {
                 str += disassembly_line_formatter(
                     instruction_ptr - code.data(),
                     "call",
-                    std::format("with {} args", *(instruction_ptr + 1))
+                    std::format("frame index count: {}", frame_index_count)
                 );
 
-                instruction_ptr += 2;
+                frame_index_count--;
+                instruction_ptr++;
                 break;
             case static_cast<uint8_t>(opcode::push_constant):
                 str += disassembly_line_formatter(
                     instruction_ptr - code.data(),
                     "push_constant",
-                    std::visit(result_variant_formatter, constants[*(instruction_ptr + 1)])
+                    std::visit(scheme_value_formatter, constants[*(instruction_ptr + 1)])
                 );
 
                 instruction_ptr += 2;
+                break;
+            case static_cast<uint8_t>(opcode::push_frame_index):
+                str += disassembly_line_formatter(
+                    instruction_ptr - code.data(),
+                    "push_frame_index",
+                    ""
+                );
+
+                frame_index_count++;
+                instruction_ptr++;
                 break;
             case static_cast<uint8_t>(opcode::jump_forward_if_not):
                 str += disassembly_line_formatter(
@@ -119,7 +131,7 @@ std::string bytecode::disassemble() const {
     return str;
 }
 
-const result_variant& bytecode::get_constant(uint8_t index) const {
+const scheme_value& bytecode::get_constant(uint8_t index) const {
     if (index >= constants.size())
         throw std::runtime_error("constant index out of bounds");
 

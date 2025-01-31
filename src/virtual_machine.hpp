@@ -20,10 +20,17 @@ inline const std::unordered_map<std::string_view, builtin_procedure> bp_name_to_
     {"+", builtin_plus},
 };
 
+struct call_frame {
+    size_t frame_index;
+    uint8_t* return_ptr;
+};
+
 struct virtual_machine {
-    std::vector<result_variant> stack;
+    std::vector<call_frame> call_frame_stack;
+    std::vector<scheme_value> stack;
 
     void execute(const bytecode& p);
+    void pop_excess(const size_t return_value_count);
     std::string to_string() const;
 
     protected:
