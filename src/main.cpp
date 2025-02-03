@@ -13,6 +13,9 @@ int main() {
         "(odd? (* 5 1))",
         "((if #f + -) 3 (* 5 2))",
         "((if (odd? (* 5 1)) + -) 3 (* 5 2))",
+        "((lambda (x) (* x x)) 5)",
+        "((lambda (f) (f 5)) (lambda (x) (* x x)))",
+        "((((lambda (x) (lambda (y) (lambda (z) (* x y z)))) 5) 6) 2)",
     });
 
     for (const auto& s : statements) {

@@ -1,6 +1,5 @@
 #include <format>
 #include <stdexcept>
-#include <stdint.h>
 #include <string>
 #include <vector>
 
