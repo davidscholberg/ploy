@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <stdint.h>
 #include <string>
 #include <string.h>
@@ -23,14 +24,48 @@ enum class opcode : uint8_t {
     ret,
 };
 
+struct opcode_no_arg {
+    uint8_t opcode_value;
+};
+
+struct opcode_one_arg {
+    uint8_t opcode_value;
+    uint8_t arg;
+};
+
+using jump_size_type = uint32_t;
+
+struct opcode_jump {
+    uint8_t opcode_value;
+    uint8_t jump_size[sizeof(jump_size_type)];
+};
+
+struct opcode_info {
+    const char* const name;
+    uint8_t size;
+};
+
+inline constexpr auto opcode_infos = std::to_array<opcode_info>({
+    {"call", sizeof(opcode_no_arg)},
+    {"capture_shared_var", sizeof(opcode_one_arg)},
+    {"capture_stack_var", sizeof(opcode_one_arg)},
+    {"expect_argc", sizeof(opcode_one_arg)},
+    {"halt", sizeof(opcode_no_arg)},
+    {"jump_forward", sizeof(opcode_jump)},
+    {"jump_forward_if_not", sizeof(opcode_jump)},
+    {"push_constant", sizeof(opcode_one_arg)},
+    {"push_frame_index", sizeof(opcode_no_arg)},
+    {"push_shared_var", sizeof(opcode_one_arg)},
+    {"push_stack_var", sizeof(opcode_one_arg)},
+    {"ret", sizeof(opcode_no_arg)},
+});
+
 struct lambda_code {
     std::vector<uint8_t> code;
     uint8_t lambda_constant_id;
 };
 
 struct bytecode {
-    using jump_size_type = uint32_t;
-
     std::vector<uint8_t> code;
 
     uint8_t add_constant(const scheme_constant& new_constant);

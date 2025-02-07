@@ -177,16 +177,16 @@ void virtual_machine::execute(const bytecode& program) {
                 instruction_ptr++;
 
                 if (!std::visit(boolean_eval_visitor, stack.back()))
-                    instruction_ptr += bytecode::read_value<bytecode::jump_size_type>(instruction_ptr);
+                    instruction_ptr += bytecode::read_value<jump_size_type>(instruction_ptr);
                 else
-                    instruction_ptr += sizeof(bytecode::jump_size_type);
+                    instruction_ptr += sizeof(jump_size_type);
 
                 stack.pop_back();
 
                 continue;
             case static_cast<uint8_t>(opcode::jump_forward):
                 instruction_ptr++;
-                instruction_ptr += bytecode::read_value<bytecode::jump_size_type>(instruction_ptr);
+                instruction_ptr += bytecode::read_value<jump_size_type>(instruction_ptr);
                 continue;
             case static_cast<uint8_t>(opcode::halt):
                 return;
@@ -325,7 +325,7 @@ void virtual_machine::pop_excess(const size_t return_value_count) {
 }
 
 std::string virtual_machine::to_string() const {
-    std::string str = "stack: [";
+    std::string str = "vm stack: [";
     for (const auto& v : stack)
         str += std::visit(
             stack_value_overload{

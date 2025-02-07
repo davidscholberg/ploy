@@ -79,153 +79,127 @@ std::string bytecode::disassemble() const {
     for (const auto& [k, v] : bp_name_to_ptr)
         bp_ptr_to_name[v] = k;
 
+    const auto get_lambda_label = [](const size_t dest_offset) {
+        return std::format("lambda{}", dest_offset);
+    };
+
     const overload scheme_constant_formatter{
         [&bp_ptr_to_name](const builtin_procedure& v) {
             if (!bp_ptr_to_name.contains(v))
                 throw std::runtime_error("builtin procedure not found by address");
             return std::format("bp: {}", bp_ptr_to_name[v]);
         },
-        [](const lambda_constant& v) {
-            return std::format("lambda: {}", v);
+        [&get_lambda_label](const lambda_constant& v) {
+            return get_lambda_label(v);
         },
         [](const auto& v) {
             return std::format("{}", v);
         },
     };
 
-    constexpr auto disassembly_line_formatter = [](
-        const auto offset,
-        const auto opcode_name,
+    const auto get_jump_dest_offset = [](const auto& code, const uint8_t* const instruction_ptr) {
+        const auto jump_size = read_value<jump_size_type>(instruction_ptr + 1) + 1;
+        const size_t dest_offset = (instruction_ptr + jump_size) - code.data();
+        return dest_offset;
+    };
+
+    const auto get_jump_label = [](const size_t dest_offset) {
+        return std::format("j{}", dest_offset);
+    };
+
+    std::unordered_map<size_t, std::string> offset_to_label_map;
+    for (size_t offset = 0; offset < code.size(); offset += opcode_infos.at(code[offset]).size)
+        if (
+            code[offset] == static_cast<uint8_t>(opcode::jump_forward)
+            or code[offset] == static_cast<uint8_t>(opcode::jump_forward_if_not)
+        ) {
+            const size_t dest_offset = get_jump_dest_offset(code, code.data() + offset);
+            offset_to_label_map[dest_offset] = std::format("{}:", get_jump_label(dest_offset));
+        }
+    for (const auto& c : constants)
+        if (const auto* const l_ptr = std::get_if<lambda_constant>(&c))
+            offset_to_label_map[*l_ptr] = std::format("{}:", get_lambda_label(*l_ptr));
+
+    const auto* const start_ptr = code.data();
+    const auto disassembly_line_formatter = [&offset_to_label_map, start_ptr](
+        const auto* const current_ptr,
         const auto additional_info
     ) {
-        return std::format(
-            "{:>4}: {:<20} {}\n",
+        const size_t offset = current_ptr - start_ptr;
+
+        std::string newline = "";
+        std::string label = "";
+
+        if (offset_to_label_map.contains(offset)) {
+            label = offset_to_label_map[offset];
+            if (label.starts_with("lambda"))
+                newline = "\n";
+        }
+
+        return newline + std::format(
+            "{:<10} {:>4}: {:<21} {}\n",
+            label,
             offset,
-            opcode_name,
+            opcode_infos.at(*current_ptr).name,
             additional_info
         );
     };
 
     const uint8_t* instruction_ptr = code.data();
-    size_t frame_index_count = 0;
-
     std::string str;
 
     while (instruction_ptr - code.data() < code.size()) {
         switch (*instruction_ptr) {
             case static_cast<uint8_t>(opcode::call):
-                str += disassembly_line_formatter(
-                    instruction_ptr - code.data(),
-                    "call",
-                    std::format("frame index count: {}", frame_index_count)
-                );
-
-                frame_index_count--;
-                instruction_ptr++;
+                str += disassembly_line_formatter(instruction_ptr, "");
                 break;
             case static_cast<uint8_t>(opcode::capture_shared_var):
-                str += disassembly_line_formatter(
-                    instruction_ptr - code.data(),
-                    "capture_shared_var",
-                    *(instruction_ptr + 1)
-                );
-
-                instruction_ptr += 2;
+                str += disassembly_line_formatter(instruction_ptr, *(instruction_ptr + 1));
                 break;
             case static_cast<uint8_t>(opcode::capture_stack_var):
-                str += disassembly_line_formatter(
-                    instruction_ptr - code.data(),
-                    "capture_stack_var",
-                    *(instruction_ptr + 1)
-                );
-
-                instruction_ptr += 2;
+                str += disassembly_line_formatter(instruction_ptr, *(instruction_ptr + 1));
                 break;
             case static_cast<uint8_t>(opcode::expect_argc):
-                str += disassembly_line_formatter(
-                    instruction_ptr - code.data(),
-                    "expect_argc",
-                    *(instruction_ptr + 1)
-                );
-
-                instruction_ptr += 2;
+                str += disassembly_line_formatter(instruction_ptr, *(instruction_ptr + 1));
                 break;
             case static_cast<uint8_t>(opcode::push_constant):
                 str += disassembly_line_formatter(
-                    instruction_ptr - code.data(),
-                    "push_constant",
+                    instruction_ptr,
                     std::visit(scheme_constant_formatter, constants[*(instruction_ptr + 1)])
                 );
-
-                instruction_ptr += 2;
                 break;
             case static_cast<uint8_t>(opcode::push_frame_index):
-                str += disassembly_line_formatter(
-                    instruction_ptr - code.data(),
-                    "push_frame_index",
-                    ""
-                );
-
-                frame_index_count++;
-                instruction_ptr++;
+                str += disassembly_line_formatter(instruction_ptr, "");
                 break;
             case static_cast<uint8_t>(opcode::push_shared_var):
-                str += disassembly_line_formatter(
-                    instruction_ptr - code.data(),
-                    "push_shared_var",
-                    *(instruction_ptr + 1)
-                );
-
-                instruction_ptr += 2;
+                str += disassembly_line_formatter(instruction_ptr, *(instruction_ptr + 1));
                 break;
             case static_cast<uint8_t>(opcode::push_stack_var):
-                str += disassembly_line_formatter(
-                    instruction_ptr - code.data(),
-                    "push_stack_var",
-                    *(instruction_ptr + 1)
-                );
-
-                instruction_ptr += 2;
+                str += disassembly_line_formatter(instruction_ptr, *(instruction_ptr + 1));
                 break;
             case static_cast<uint8_t>(opcode::jump_forward_if_not):
                 str += disassembly_line_formatter(
-                    instruction_ptr - code.data(),
-                    "jump_forward_if_not",
-                    std::format("{} bytes", read_value<bytecode::jump_size_type>(instruction_ptr + 1) + 1)
+                    instruction_ptr,
+                    get_jump_label(get_jump_dest_offset(code, instruction_ptr))
                 );
-
-                instruction_ptr++;
-                instruction_ptr += sizeof(bytecode::jump_size_type);
                 break;
             case static_cast<uint8_t>(opcode::jump_forward):
                 str += disassembly_line_formatter(
-                    instruction_ptr - code.data(),
-                    "jump_forward",
-                    std::format("{} bytes", read_value<bytecode::jump_size_type>(instruction_ptr + 1) + 1)
+                    instruction_ptr,
+                    get_jump_label(get_jump_dest_offset(code, instruction_ptr))
                 );
-
-                instruction_ptr++;
-                instruction_ptr += sizeof(bytecode::jump_size_type);
                 break;
             case static_cast<uint8_t>(opcode::ret):
-                str += disassembly_line_formatter(
-                    instruction_ptr - code.data(),
-                    "ret",
-                    ""
-                );
-
-                instruction_ptr++;
+                str += disassembly_line_formatter(instruction_ptr, "");
                 break;
             case static_cast<uint8_t>(opcode::halt):
-                str += disassembly_line_formatter(
-                    instruction_ptr - code.data(),
-                    "halt",
-                    ""
-                );
-
-                instruction_ptr++;
+                str += disassembly_line_formatter(instruction_ptr, "");
                 break;
+            default:
+                throw std::runtime_error("invalid opcode");
         }
+
+        instruction_ptr += opcode_infos.at(*instruction_ptr).size;
     }
 
     return str;
