@@ -92,6 +92,12 @@ std::string bytecode::disassemble() const {
         [&get_lambda_label](const lambda_constant& v) {
             return get_lambda_label(v);
         },
+        [](const empty_list&) {
+            return std::format("()");
+        },
+        [](const symbol& v) {
+            return std::format("symbol: {}", v);
+        },
         [](const auto& v) {
             return std::format("{}", v);
         },
@@ -158,6 +164,9 @@ std::string bytecode::disassemble() const {
                 break;
             case static_cast<uint8_t>(opcode::capture_stack_var):
                 str += disassembly_line_formatter(instruction_ptr, *(instruction_ptr + 1));
+                break;
+            case static_cast<uint8_t>(opcode::cons):
+                str += disassembly_line_formatter(instruction_ptr, "");
                 break;
             case static_cast<uint8_t>(opcode::expect_argc):
                 str += disassembly_line_formatter(instruction_ptr, *(instruction_ptr + 1));
@@ -230,27 +239,4 @@ void bytecode::pop_lambda() {
 
 void bytecode::push_lambda(uint8_t lambda_constant_index) {
     compiling_blocks.emplace_back(lambda_code{{}, lambda_constant_index});
-}
-
-std::string bytecode::to_string() const {
-    std::string str = "constants: [";
-    for (const auto& c : constants)
-        str += std::visit(
-            overload{
-                [](const builtin_procedure& v) {
-                    return std::format("{}, ", reinterpret_cast<void*>(v));
-                },
-                [](const auto& v) {
-                    return std::format("{}, ", v);
-                },
-            },
-            c
-        );
-
-    str += "]\nbytecode: [";
-    for (const auto& b : code)
-        str += std::format("{}, ", b);
-
-    str += "]";
-    return str;
 }

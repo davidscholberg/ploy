@@ -16,6 +16,10 @@ int main() {
         "((lambda (x) (* x x)) 5)",
         "((lambda (f) (f 5)) (lambda (x) (* x x)))",
         "((((lambda (x) (lambda (y) (lambda (z) (* x y z)))) 5) 6) 2)",
+        "'(6 . 3)",
+        "'('6)",
+        "(quote ((quote 6)))",
+        "(cons 'a '(b c))",
     });
 
     for (const auto& s : statements) {

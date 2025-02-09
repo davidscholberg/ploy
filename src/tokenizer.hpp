@@ -46,3 +46,5 @@ struct tokenizer {
     void add_number_token();
     void add_string_token();
 };
+
+inline constexpr std::string_view quote_symbol = "quote";

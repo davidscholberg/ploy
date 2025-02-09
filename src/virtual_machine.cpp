@@ -16,6 +16,15 @@ static constexpr overload scheme_constant_to_stack_value_visitor{
     },
 };
 
+static constexpr overload stack_value_to_scheme_value_visitor{
+    [](const scheme_value_ptr& v) -> scheme_value {
+        return *v;
+    },
+    [](const auto& v) -> scheme_value {
+        return v;
+    },
+};
+
 static constexpr overload stack_value_to_scheme_value_ptr_visitor{
     [](const scheme_value_ptr& v) -> scheme_value_ptr {
         return v;
@@ -71,7 +80,7 @@ static void native_fold_left(void* vm_void_ptr, uint8_t argc) {
 
     if constexpr (AllowNoArgs) {
         if (argc == 0) {
-            vm->stack[vm->stack.size() - 1] = Identity;
+            vm->stack[vm->stack.size() - 1] = int64_t{Identity};
             return;
         }
     } else {
@@ -93,6 +102,24 @@ static void native_fold_left(void* vm_void_ptr, uint8_t argc) {
         vm->stack[first_i - 1] = result;
     }
 
+    vm->pop_excess(1);
+}
+
+void builtin_car(void* vm_void_ptr, uint8_t argc) {
+    virtual_machine* vm = static_cast<virtual_machine*>(vm_void_ptr);
+}
+
+void builtin_cdr(void* vm_void_ptr, uint8_t argc) {
+    virtual_machine* vm = static_cast<virtual_machine*>(vm_void_ptr);
+}
+
+void builtin_cons(void* vm_void_ptr, uint8_t argc) {
+    virtual_machine* vm = static_cast<virtual_machine*>(vm_void_ptr);
+
+    if (argc != 2)
+        throw std::runtime_error("procedure needs two args");
+
+    vm->execute_cons(2);
     vm->pop_excess(1);
 }
 
@@ -145,6 +172,10 @@ void virtual_machine::execute(const bytecode& program) {
                     scheme_constant_to_stack_value_visitor,
                     program.get_constant(*instruction_ptr)
                 ));
+                break;
+            case static_cast<uint8_t>(opcode::cons):
+                execute_cons();
+                stack.pop_back();
                 break;
             case static_cast<uint8_t>(opcode::push_shared_var):
                 execute_push_shared_var();
@@ -289,6 +320,25 @@ void virtual_machine::execute_call() {
     }
 }
 
+void virtual_machine::execute_cons() {
+    execute_cons(1);
+}
+
+void virtual_machine::execute_cons(size_t dest_from_top) {
+    if (stack.size() < 2)
+        throw std::runtime_error("need two stack elements in order to cons");
+
+    size_t cdr_i = stack.size() - 1;
+    size_t car_i = cdr_i - 1;
+
+    stack[cdr_i - dest_from_top] = std::make_shared<pair>(
+        std::visit(stack_value_to_scheme_value_visitor, stack[car_i]),
+        std::visit(stack_value_to_scheme_value_visitor, stack[cdr_i])
+    );
+
+    // NOTE: callers must pop the stack as needed
+}
+
 void virtual_machine::execute_ret() {
     if (call_frame_stack.empty())
         throw std::runtime_error("call frame stack empty for ret");
@@ -327,20 +377,7 @@ void virtual_machine::pop_excess(const size_t return_value_count) {
 std::string virtual_machine::to_string() const {
     std::string str = "vm stack: [";
     for (const auto& v : stack)
-        str += std::visit(
-            stack_value_overload{
-                [](const builtin_procedure& v) {
-                    return std::format("bp: {}, ", reinterpret_cast<void*>(v));
-                },
-                [](const lambda_ptr& v) {
-                    return std::format("lambda: {}, ", v->bytecode_offset);
-                },
-                [](const auto& v) {
-                    return std::format("{}, ", v);
-                },
-            },
-            v
-        );
+        str += std::visit(stack_value_formatter_overload{}, v) + ", ";
 
     str += "]";
     return str;

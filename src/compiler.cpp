@@ -57,7 +57,7 @@ void compiler::add_stack_var(const std::string_view& var_name) {
 }
 
 void compiler::compile_boolean() {
-    uint8_t constant_index = program.add_constant(current_token_ptr->type == token_type::boolean_true);
+    uint8_t constant_index = program.add_constant(generate_boolean_constant());
 
     program.append_opcode(opcode::push_constant);
     program.append_byte(constant_index);
@@ -95,6 +95,10 @@ void compiler::compile_expression() {
         case token_type::boolean_false:
             compile_boolean();
             break;
+        case token_type::single_quote:
+            current_token_ptr++;
+            compile_external_representation_abbr();
+            break;
         case token_type::left_paren:
             current_token_ptr++;
 
@@ -103,12 +107,60 @@ void compiler::compile_expression() {
                 compile_if();
             else if (current_token_ptr->value == "lambda")
                 compile_lambda();
+            else if (current_token_ptr->value == "quote")
+                compile_external_representation();
             else
                 compile_procedure_call();
 
             break;
         default:
             throw std::runtime_error(std::format("unexpected token: {}", static_cast<uint8_t>(current_token_ptr->type)));
+    }
+}
+
+void compiler::compile_external_representation() {
+    current_token_ptr++;
+    compile_external_representation_abbr();
+    consume_token(token_type::right_paren);
+}
+
+void compiler::compile_external_representation_abbr() {
+    switch (current_token_ptr->type) {
+        case token_type::number:
+            compile_number();
+            break;
+        case token_type::boolean_true:
+        case token_type::boolean_false:
+            compile_boolean();
+            break;
+        case token_type::identifier:
+            program.append_opcode(opcode::push_constant);
+            program.append_byte(program.add_constant(symbol{current_token_ptr->value}));
+            current_token_ptr++;
+            break;
+        case token_type::single_quote:
+            // NOTE: currently we don't expand single quotes to (quote x) in tokenizer, and as a
+            // result we have to essentially compile a custom pair here with a static quote symbol.
+            // This solution is questionable at best since we now have two locations in the code
+            // that compile pairs.
+            program.append_opcode(opcode::push_constant);
+            program.append_byte(program.add_constant(symbol{quote_symbol}));
+
+            current_token_ptr++;
+            compile_external_representation_abbr();
+
+            program.append_opcode(opcode::push_constant);
+            program.append_byte(program.add_constant(empty_list{}));
+
+            program.append_opcode(opcode::cons);
+            program.append_opcode(opcode::cons);
+            break;
+        case token_type::left_paren:
+            current_token_ptr++;
+            compile_pair();
+            break;
+        default:
+            throw std::runtime_error(std::format("unexpected token for external representation: {}", static_cast<uint8_t>(current_token_ptr->type)));
     }
 }
 
@@ -204,31 +256,36 @@ void compiler::compile_lambda() {
 }
 
 void compiler::compile_number() {
-    const std::string_view& sv = current_token_ptr->value;
-
-    uint8_t constant_index;
-    if (sv.find(".") == std::string::npos) {
-        int64_t int_value;
-        auto [ptr, ec] = std::from_chars(sv.data(), sv.data() + sv.size(), int_value);
-
-        if (ec != std::errc())
-            throw std::runtime_error("couldn't parse int");
-
-        constant_index = program.add_constant(int_value);
-    } else {
-        double double_value;
-        auto [ptr, ec] = std::from_chars(sv.data(), sv.data() + sv.size(), double_value);
-
-        if (ec != std::errc())
-            throw std::runtime_error("couldn't parse double");
-
-        constant_index = program.add_constant(double_value);
-    }
+    uint8_t constant_index = program.add_constant(generate_number_constant());
 
     program.append_opcode(opcode::push_constant);
     program.append_byte(constant_index);
 
     current_token_ptr++;
+}
+
+void compiler::compile_pair() {
+    compile_external_representation_abbr();
+
+    if (eof())
+        throw std::runtime_error("unexpected eof in pair");
+
+    if (current_token_ptr->type == token_type::dot) {
+        current_token_ptr++;
+        compile_external_representation_abbr();
+        consume_token(token_type::right_paren);
+    } else if (current_token_ptr->type == token_type::right_paren) {
+        uint8_t constant_index = program.add_constant(empty_list{});
+
+        program.append_opcode(opcode::push_constant);
+        program.append_byte(constant_index);
+
+        current_token_ptr++;
+    } else {
+        compile_pair();
+    }
+
+    program.append_opcode(opcode::cons);
 }
 
 void compiler::consume_token(const token_type type) {
@@ -240,6 +297,32 @@ void compiler::consume_token(const token_type type) {
 
 bool compiler::eof() {
     return current_token_ptr->type == token_type::eof;
+}
+
+scheme_constant compiler::generate_boolean_constant() {
+    return current_token_ptr->type == token_type::boolean_true;
+}
+
+scheme_constant compiler::generate_number_constant() {
+    const std::string_view& sv = current_token_ptr->value;
+
+    if (sv.find(".") == std::string::npos) {
+        int64_t int_value;
+        auto [ptr, ec] = std::from_chars(sv.data(), sv.data() + sv.size(), int_value);
+
+        if (ec != std::errc())
+            throw std::runtime_error("couldn't parse int");
+
+        return int_value;
+    }
+
+    double double_value;
+    auto [ptr, ec] = std::from_chars(sv.data(), sv.data() + sv.size(), double_value);
+
+    if (ec != std::errc())
+        throw std::runtime_error("couldn't parse double");
+
+    return double_value;
 }
 
 std::pair<variable_type, uint8_t> compiler::get_var_type_and_id(const std::string_view& name) {

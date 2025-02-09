@@ -1,8 +1,12 @@
 #pragma once
 
+#include <string>
+#include <string_view>
+#include <unordered_map>
 #include <variant>
 
 #include "scheme_value.hpp"
+#include "virtual_machine.hpp"
 
 // Allows us to easily construct a callable object with overloads for a variant type. Useful for
 // std::visit.
@@ -50,5 +54,60 @@ struct stack_value_overload : Ts... {
             *a,
             *b
         );
+    }
+};
+
+struct stack_value_formatter_overload {
+    std::string operator()(const empty_list& v) const {
+        return std::format("()");
+    }
+
+    std::string operator()(const symbol& v) const {
+        return std::format("{}", v);
+    }
+
+    std::string operator()(const builtin_procedure& v) const {
+        return std::format("bp: {}", reinterpret_cast<void*>(v));
+    }
+
+    std::string operator()(const lambda_ptr& v) const {
+        return std::format("lambda: {}", v->bytecode_offset);
+    }
+
+    std::string operator()(const pair_ptr& a) const {
+        // NOTE: pairs consist of two scheme_values, not stack_values, but because all valid
+        // scheme_value types are also valid stack_value types, the recursive call within the
+        // visitor works fine.
+        return std::format(
+            "({} . {})",
+            std::visit(
+                [this](const auto& a) {
+                    return (*this)(a);
+                },
+                a->car
+            ),
+            std::visit(
+                [this](const auto& a) {
+                    return (*this)(a);
+                },
+                a->cdr
+            )
+        );
+    }
+
+    std::string operator()(const scheme_value_ptr& a) const {
+        return std::format(
+            "ptr: {}",
+            std::visit(
+                [this](const auto& a) {
+                    return (*this)(a);
+                },
+                *a
+            )
+        );
+    }
+
+    std::string operator()(const auto& v) const {
+        return std::format("{}", v);
     }
 };

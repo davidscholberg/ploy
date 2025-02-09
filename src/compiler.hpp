@@ -33,12 +33,17 @@ struct compiler {
     void compile_boolean();
     void compile_procedure_call();
     void compile_expression();
+    void compile_external_representation();
+    void compile_external_representation_abbr();
     void compile_identifier();
     void compile_if();
     void compile_lambda();
     void compile_number();
+    void compile_pair();
     void consume_token(const token_type type);
     bool eof();
+    scheme_constant generate_boolean_constant();
+    scheme_constant generate_number_constant();
     std::pair<variable_type, uint8_t> get_var_type_and_id(const std::string_view& name);
     std::pair<variable_type, uint8_t> get_var_type_and_id(const std::string_view& name, size_t scope_depth);
     void pop_lambda();
