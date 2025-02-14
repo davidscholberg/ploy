@@ -74,25 +74,49 @@ struct stack_value_formatter_overload {
         return std::format("lambda: {}", v->bytecode_offset);
     }
 
-    std::string operator()(const pair_ptr& a) const {
+    std::pair<std::string, bool> pair_contents_to_string(const pair_ptr& a) const {
         // NOTE: pairs consist of two scheme_values, not stack_values, but because all valid
         // scheme_value types are also valid stack_value types, the recursive call within the
         // visitor works fine.
-        return std::format(
-            "({} . {})",
-            std::visit(
-                [this](const auto& a) {
-                    return (*this)(a);
-                },
-                a->car
-            ),
-            std::visit(
-                [this](const auto& a) {
-                    return (*this)(a);
-                },
-                a->cdr
-            )
+        const std::string car_str = std::visit(
+            [this](const auto& a) {
+                return (*this)(a);
+            },
+            a->car
         );
+
+        if (const auto* const cdr_empty_list = std::get_if<empty_list>(&(a->cdr)))
+            return {std::format("{}", car_str), true};
+
+        if (const auto* const cdr_pair_ptr_ptr = std::get_if<pair_ptr>(&(a->cdr))) {
+            const auto [cdr_str, is_list] = pair_contents_to_string(*cdr_pair_ptr_ptr);
+            if (is_list)
+                return {std::format("{} {}", car_str, cdr_str), true};
+            return {std::format("({} . {})", car_str, cdr_str), false};
+        }
+
+        return {
+            std::format(
+                "({} . {})",
+                car_str,
+                std::visit(
+                    [this](const auto& a) {
+                        return (*this)(a);
+                    },
+                    a->cdr
+                )
+            ),
+            false
+        };
+    }
+
+    std::string operator()(const pair_ptr& a) const {
+        const auto [pair_str, is_list] = pair_contents_to_string(a);
+
+        if (is_list)
+            return std::format("({})", pair_str);
+
+        return std::format("{}", pair_str);
     }
 
     std::string operator()(const scheme_value_ptr& a) const {
