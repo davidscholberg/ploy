@@ -1,20 +1,28 @@
 #pragma once
 
 #include <string>
-#include <string_view>
-#include <unordered_map>
 #include <variant>
 
 #include "scheme_value.hpp"
-#include "virtual_machine.hpp"
 
-// Allows us to easily construct a callable object with overloads for a variant type. Useful for
-// std::visit.
+/**
+ * Allows us to easily construct a callable object with overloads for a variant type. Useful for
+ * std::visit.
+ *
+ * The overloads can be lambdas provided in an initializer list at object instantiaion.
+ */
 template<class... Ts>
 struct overload : Ts... {
     using Ts::operator()...;
 };
 
+/**
+ * Specialized overload object for stack_value that has built-in overloads for feeding the
+ * underlying scheme_value in a scheme_value_ptr back to an overload in this object (which may be a
+ * lambda provided in the initializer list). This is useful for making specialized overloads for
+ * stack_values without having to worry about scheme_value_ptrs being processed properly. This
+ * struct has both unary and binary scheme_value_ptr overloads.
+ */
 template<class... Ts>
 struct stack_value_overload : Ts... {
     using Ts::operator()...;
@@ -57,6 +65,11 @@ struct stack_value_overload : Ts... {
     }
 };
 
+/**
+ * Represents a callable object with overloads for each type contained within stack_value for the
+ * purpose of generating external representations (i.e. strings) of stack_values. Meant to be used
+ * with std::visit.
+ */
 struct stack_value_formatter_overload {
     std::string operator()(const empty_list& v) const {
         return std::format("()");
@@ -74,10 +87,12 @@ struct stack_value_formatter_overload {
         return std::format("lambda: {}", v->bytecode_offset);
     }
 
-    std::pair<std::string, bool> pair_contents_to_string(const pair_ptr& a) const {
-        // TODO: (cons 1 (cons 2 3)) currently outputs (1 . (2 . 3)), but racket says it should be
-        // (1 2 . 3). So it seems that the dots should be collapsed when the cdr is any kind of
-        // pair, list or not.
+    /**
+     * This is a recursive helper function for the pair_ptr overload that allows us to collapse the
+     * dot notation when we have a chain of pairs (meaning a pair whose cdr is also a pair,
+     * recursively).
+     */
+    std::string pair_contents_to_string(const pair_ptr& a) const {
         // NOTE: pairs consist of two scheme_values, not stack_values, but because all valid
         // scheme_value types are also valid stack_value types, the recursive call within the
         // visitor works fine.
@@ -89,37 +104,28 @@ struct stack_value_formatter_overload {
         );
 
         if (const auto* const cdr_empty_list = std::get_if<empty_list>(&(a->cdr)))
-            return {std::format("{}", car_str), true};
+            return std::format("{}", car_str);
 
         if (const auto* const cdr_pair_ptr_ptr = std::get_if<pair_ptr>(&(a->cdr))) {
-            const auto [cdr_str, is_list] = pair_contents_to_string(*cdr_pair_ptr_ptr);
-            if (is_list)
-                return {std::format("{} {}", car_str, cdr_str), true};
-            return {std::format("({} . {})", car_str, cdr_str), false};
+            const auto cdr_str = pair_contents_to_string(*cdr_pair_ptr_ptr);
+            return std::format("{} {}", car_str, cdr_str);
         }
 
-        return {
-            std::format(
-                "({} . {})",
-                car_str,
-                std::visit(
-                    [this](const auto& a) {
-                        return (*this)(a);
-                    },
-                    a->cdr
-                )
-            ),
-            false
-        };
+        return std::format(
+            "{} . {}",
+            car_str,
+            std::visit(
+                [this](const auto& a) {
+                    return (*this)(a);
+                },
+                a->cdr
+            )
+        );
     }
 
     std::string operator()(const pair_ptr& a) const {
-        const auto [pair_str, is_list] = pair_contents_to_string(a);
-
-        if (is_list)
-            return std::format("({})", pair_str);
-
-        return std::format("{}", pair_str);
+        const auto pair_str = pair_contents_to_string(a);
+        return std::format("({})", pair_str);
     }
 
     std::string operator()(const scheme_value_ptr& a) const {

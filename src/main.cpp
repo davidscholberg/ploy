@@ -21,7 +21,7 @@ int main() {
         "(quote ((quote 6)))",
         "(cons 'a '(b c))",
         "(cons '(1 2 3) 4)",
-        "(cons 1 (cons 2 3))",
+        "(cons 1 (cons 2 (cons 3 4)))",
         "(car (cdr '(1 . (2 . 3))))",
     });
 
