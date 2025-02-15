@@ -9,6 +9,9 @@ static bool is_whitespace(const char c) {
     return c == ' ' or c == '\n';
 }
 
+/**
+ * Checks if character is a token delimiter.
+ */
 static bool is_delimiter(const char c) {
     return (
         is_whitespace(c)
@@ -27,10 +30,16 @@ static bool is_digit(const char c) {
     return c >= '0' and c <= '9';
 }
 
+/**
+ * A numeric character is either 0-9 or `.`.
+ */
 static bool is_numeric(const char c) {
     return is_digit(c) or c == '.';
 }
 
+/**
+ * Checks if character is a special initial character of an identifier.
+ */
 static bool is_special_initial(const char c) {
     switch (c) {
         case '!':
@@ -53,6 +62,9 @@ static bool is_special_initial(const char c) {
     return false;
 }
 
+/**
+ * Checks if character is the initial character of an identifier.
+ */
 static bool is_identifier_initial(const char c) {
     return (
         (c >= 'A' and c <= 'Z')
@@ -61,6 +73,10 @@ static bool is_identifier_initial(const char c) {
     );
 }
 
+/**
+ * Checks if character is a subsequent character of an identifier (i.e. any position but the
+ * initial).
+ */
 static bool is_identifier_subsequent(const char c) {
     return (
         is_identifier_initial(c)

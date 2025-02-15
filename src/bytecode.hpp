@@ -9,19 +9,90 @@
 
 #include "scheme_value.hpp"
 
+/**
+ * Identifies an opcode, which is a byte value that tells the virtual machine to perform a
+ * particular action. Each opcode has a fixed number of arguments that come directly after the
+ * opcode in the bytecode. Some opcodes have no arguments.
+ */
 enum class opcode : uint8_t {
+
+    /**
+     * Call the builtin procedure or lambda located at the current call frame on the stack.
+     */
     call,
+
+    /**
+     * Capture a shared variable from the currently executing lambda to the lambda on the stack
+     * top. Has one argument that is an index into the lambdas shared variables indicating the
+     * variable to capture.
+     */
     capture_shared_var,
+
+    /**
+     * Capture a stack variable. Has one argument that is an index into the currently executing
+     * lambda's stack variables indicating the variable to capture.
+     */
     capture_stack_var,
+
+    /**
+     * Replace the top two stack values with a pair containing those stack values, where the cdr is
+     * the stack top.
+     */
     cons,
+
+    /**
+     * Check to make sure that argc for the currently executing lambda is as expected. Only needed
+     * for lambdas that have a fixed number of args. The one argument for this opcode is the argc to
+     * expect.
+     */
     expect_argc,
+
+    /**
+     * Halt the vm.
+     */
     halt,
+
+    /**
+     * Unconditional jump forward. The jump offset is store in 4 bytes directly after this opcode.
+     * Currently the endianness is platform dependent, but if we ever want platform-independent
+     * bytecode then we'll have to pick an endian type here.
+     */
     jump_forward,
+
+    /**
+     * Conditional jump forward if the value on the stack top is false. See jump_forward for jump
+     * offset format.
+     */
     jump_forward_if_not,
+
+    /**
+     * Push a constant from the bytecode's constants vector to the top of the stack. The one byte
+     * arg is an index into the constants vector.
+     */
     push_constant,
+
+    /**
+     * Create a new call frame at the current stack top and push it to the call frame stack. The
+     * call frame keeps track of a procedure's or lambda's arguments.
+     */
     push_frame_index,
+
+    /**
+     * Push a shared var identified by the opcode's one byte argument from the currently executing
+     * lambda's shared var list to the stack top.
+     */
     push_shared_var,
+
+    /**
+     * Push a stack var identified by the opcode's one byte argument from the currently executing
+     * lambda's stack vars to the stack top.
+     */
     push_stack_var,
+
+    /**
+     * Pop the current call frame, roll the return value(s) down over the call frame's position on
+     * the stack, and return to the called position.
+     */
     ret,
 };
 
