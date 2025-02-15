@@ -16,6 +16,12 @@ static constexpr overload scheme_constant_to_stack_value_visitor{
     },
 };
 
+static constexpr overload scheme_value_to_stack_value_visitor{
+    [](const auto& v) -> stack_value {
+        return stack_value{v};
+    },
+};
+
 static constexpr overload stack_value_to_scheme_value_visitor{
     [](const scheme_value_ptr& v) -> scheme_value {
         return *v;
@@ -107,10 +113,54 @@ static void native_fold_left(void* vm_void_ptr, uint8_t argc) {
 
 void builtin_car(void* vm_void_ptr, uint8_t argc) {
     virtual_machine* vm = static_cast<virtual_machine*>(vm_void_ptr);
+
+    if (argc != 1)
+        throw std::runtime_error("procedure needs one arg");
+
+    size_t pair_i = vm->stack.size() - 1;
+    size_t dest_i = pair_i - 1;
+    vm->stack[dest_i] = std::visit(
+        scheme_value_to_stack_value_visitor,
+        std::visit(
+            stack_value_overload{
+                [](const pair_ptr& a) -> scheme_value {
+                    return a->car;
+                },
+                [](const auto&) -> scheme_value {
+                    throw std::runtime_error("unexpected type for car");
+                },
+            },
+            vm->stack[pair_i]
+        )
+    );
+
+    vm->pop_excess(1);
 }
 
 void builtin_cdr(void* vm_void_ptr, uint8_t argc) {
     virtual_machine* vm = static_cast<virtual_machine*>(vm_void_ptr);
+
+    if (argc != 1)
+        throw std::runtime_error("procedure needs one arg");
+
+    size_t pair_i = vm->stack.size() - 1;
+    size_t dest_i = pair_i - 1;
+    vm->stack[dest_i] = std::visit(
+        scheme_value_to_stack_value_visitor,
+        std::visit(
+            stack_value_overload{
+                [](const pair_ptr& a) -> scheme_value {
+                    return a->cdr;
+                },
+                [](const auto&) -> scheme_value {
+                    throw std::runtime_error("unexpected type for cdr");
+                },
+            },
+            vm->stack[pair_i]
+        )
+    );
+
+    vm->pop_excess(1);
 }
 
 void builtin_cons(void* vm_void_ptr, uint8_t argc) {

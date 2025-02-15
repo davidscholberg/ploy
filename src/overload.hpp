@@ -75,6 +75,9 @@ struct stack_value_formatter_overload {
     }
 
     std::pair<std::string, bool> pair_contents_to_string(const pair_ptr& a) const {
+        // TODO: (cons 1 (cons 2 3)) currently outputs (1 . (2 . 3)), but racket says it should be
+        // (1 2 . 3). So it seems that the dots should be collapsed when the cdr is any kind of
+        // pair, list or not.
         // NOTE: pairs consist of two scheme_values, not stack_values, but because all valid
         // scheme_value types are also valid stack_value types, the recursive call within the
         // visitor works fine.
