@@ -6,36 +6,36 @@ project(
     DESCRIPTION "Scheme-like language interpreter for funsies"
 )
 
-add_executable(${PROJECT_NAME})
-
-set_target_properties(
-    ${PROJECT_NAME}
-    PROPERTIES
-    CXX_STANDARD 23
-    CXX_STANDARD_REQUIRED ON
-    CXX_EXTENSIONS OFF
-)
-
-if (GNU OR CLANG)
-    target_compile_options(
-        ${PROJECT_NAME}
-        PUBLIC
-        -Wall
-        -Wextra
-        -Wpedantic
-        -Werror
+function(setup_project_target target)
+    set_target_properties(
+        ${target}
+        PROPERTIES
+        CXX_STANDARD 23
+        CXX_STANDARD_REQUIRED ON
+        CXX_EXTENSIONS OFF
     )
-elseif (MSVC)
-    target_compile_options(
-        ${PROJECT_NAME}
-        PUBLIC
-        /W4
-        /WX
-        # disable warnings from external headers
-        /external:anglebrackets
-        /external:W0
-        /external:templates-
-    )
-endif ()
+
+    if (GNU OR CLANG)
+        target_compile_options(
+            ${target}
+            PRIVATE
+            -Wall
+            -Wextra
+            -Wpedantic
+            -Werror
+        )
+    elseif (MSVC)
+        target_compile_options(
+            ${target}
+            PRIVATE
+            /W4
+            /WX
+            # disable warnings from external headers
+            /external:anglebrackets
+            /external:W0
+            /external:templates-
+        )
+    endif()
+endfunction()
 
 add_subdirectory(src)

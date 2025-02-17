@@ -1,22 +1,3 @@
-target_sources(
-    ${PROJECT_NAME}
-    PRIVATE
-    bytecode.cpp
-    bytecode.hpp
-    compiler.cpp
-    compiler.hpp
-    main.cpp
-    overload.hpp
-    scheme_value.hpp
-    template_appender.hpp
-    tokenizer.cpp
-    tokenizer.hpp
-    virtual_machine.cpp
-    virtual_machine.hpp
-)
-
-target_include_directories(
-    ${PROJECT_NAME}
-    PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}
-)
+add_subdirectory(ploylib)
+add_subdirectory(ploycli)
+add_subdirectory(tests)

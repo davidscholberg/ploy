@@ -424,11 +424,22 @@ void virtual_machine::pop_excess(const size_t return_value_count) {
     stack.erase(stack.begin() + current_call_frame.frame_index + return_value_count, stack.end());
 }
 
-std::string virtual_machine::to_string() const {
-    std::string str = "vm stack: [";
+std::string virtual_machine::stack_top_to_string() const {
+    if (stack.empty())
+        throw std::runtime_error("stack empty");
+
+    return std::visit(stack_value_formatter_overload{}, stack.back());
+}
+
+std::string virtual_machine::stack_to_string() const {
+    std::string str = "[";
     for (const auto& v : stack)
         str += std::visit(stack_value_formatter_overload{}, v) + ", ";
 
     str += "]";
     return str;
+}
+
+std::string virtual_machine::to_string() const {
+    return std::format("vm stack: {}", stack_to_string());
 }

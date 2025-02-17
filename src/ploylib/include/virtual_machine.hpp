@@ -54,6 +54,20 @@ struct virtual_machine {
     void execute(const bytecode& p);
     void execute_cons(size_t dest_from_top);
     void pop_excess(const size_t return_value_count);
+
+    /**
+     * Prints top value of vm stack to a string.
+     */
+    std::string stack_top_to_string() const;
+
+    /**
+     * Prints current state of vm stack to a string.
+     */
+    std::string stack_to_string() const;
+
+    /**
+     * Prints current state of vm to a string.
+     */
     std::string to_string() const;
 
     protected:
