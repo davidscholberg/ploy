@@ -66,7 +66,12 @@ void bytecode::concat_blocks() {
     code.reserve(total_size);
 
     for (const auto& c : std::views::reverse(compiled_blocks)) {
-        constants[c.lambda_constant_id] = static_cast<lambda_constant>(code.size());
+        if (auto* const l_ptr = std::get_if<lambda_constant>(&(constants[c.lambda_constant_id])))
+            l_ptr->bytecode_offset = code.size();
+        else if (auto* const hrl_ptr = std::get_if<hand_rolled_lambda_constant>(&(constants[c.lambda_constant_id])))
+            hrl_ptr->bytecode_offset = code.size();
+        else
+            throw std::runtime_error("expected lambda constant");
         code.insert(code.end(), c.code.cbegin(), c.code.cend());
     }
 
@@ -79,8 +84,12 @@ std::string bytecode::disassemble() const {
     for (const auto& [k, v] : bp_name_to_ptr)
         bp_ptr_to_name[v] = k;
 
-    const auto get_lambda_label = [](const size_t dest_offset) {
-        return std::format("lambda{}", dest_offset);
+    const auto get_label = [](const auto format_str, const size_t dest_offset) {
+        return std::vformat(format_str, std::make_format_args(dest_offset));
+    };
+
+    const auto get_lambda_label = [&get_label](const size_t dest_offset) {
+        return get_label("lambda{}", dest_offset);
     };
 
     const overload scheme_constant_formatter{
@@ -89,8 +98,11 @@ std::string bytecode::disassemble() const {
                 throw std::runtime_error("builtin procedure not found by address");
             return std::format("bp: {}", bp_ptr_to_name[v]);
         },
+        [](const hand_rolled_lambda_constant& v) {
+            return std::format("lambda: {}", v.name);
+        },
         [&get_lambda_label](const lambda_constant& v) {
-            return get_lambda_label(v);
+            return get_lambda_label(v.bytecode_offset);
         },
         [](const empty_list&) {
             return std::format("()");
@@ -124,7 +136,9 @@ std::string bytecode::disassemble() const {
         }
     for (const auto& c : constants)
         if (const auto* const l_ptr = std::get_if<lambda_constant>(&c))
-            offset_to_label_map[*l_ptr] = std::format("{}:", get_lambda_label(*l_ptr));
+            offset_to_label_map[l_ptr->bytecode_offset] = std::format("{}:", get_lambda_label(l_ptr->bytecode_offset));
+        else if (const auto* const hrl_ptr = std::get_if<hand_rolled_lambda_constant>(&c))
+            offset_to_label_map[hrl_ptr->bytecode_offset] = std::format("lambda: {}:", hrl_ptr->name);
 
     const auto* const start_ptr = code.data();
     const auto disassembly_line_formatter = [&offset_to_label_map, start_ptr](
@@ -143,7 +157,7 @@ std::string bytecode::disassemble() const {
         }
 
         return newline + std::format(
-            "{:<10} {:>4}: {:<21} {}\n",
+            "{:<20} {:>4}: {:<21} {}\n",
             label,
             offset,
             opcode_infos.at(*current_ptr).name,
@@ -171,6 +185,9 @@ std::string bytecode::disassemble() const {
             case static_cast<uint8_t>(opcode::expect_argc):
                 str += disassembly_line_formatter(instruction_ptr, *(instruction_ptr + 1));
                 break;
+            case static_cast<uint8_t>(opcode::push_continuation):
+                str += disassembly_line_formatter(instruction_ptr, "");
+                break;
             case static_cast<uint8_t>(opcode::push_constant):
                 str += disassembly_line_formatter(
                     instruction_ptr,
@@ -197,6 +214,12 @@ std::string bytecode::disassemble() const {
                     instruction_ptr,
                     get_jump_label(get_jump_dest_offset(code, instruction_ptr))
                 );
+                break;
+            case static_cast<uint8_t>(opcode::set_coarity_any):
+                str += disassembly_line_formatter(instruction_ptr, "");
+                break;
+            case static_cast<uint8_t>(opcode::set_coarity_one):
+                str += disassembly_line_formatter(instruction_ptr, "");
                 break;
             case static_cast<uint8_t>(opcode::ret):
                 str += disassembly_line_formatter(instruction_ptr, "");
@@ -235,6 +258,19 @@ size_t bytecode::prepare_backpatch_jump(const opcode jump_type) {
 void bytecode::pop_lambda() {
     compiled_blocks.emplace_back(std::move(compiling_blocks.back()));
     compiling_blocks.pop_back();
+}
+
+uint8_t bytecode::push_hand_rolled_lambda(const std::string_view& name) {
+    const hand_rolled_lambda_constant hrlc{name};
+
+    if (constant_to_index_map.contains(hrlc)) {
+        return constant_to_index_map[hrlc];
+    }
+
+    uint8_t constant_index = add_constant(hrlc);
+    compiled_blocks.emplace_back(hr_lambda_name_to_code.at(name), constant_index);
+
+    return constant_index;
 }
 
 void bytecode::push_lambda(uint8_t lambda_constant_index) {

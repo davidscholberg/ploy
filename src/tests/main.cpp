@@ -67,6 +67,18 @@ static constexpr auto source_output_pairs = std::to_array<std::pair<const char*,
         "(car (cdr '(1 . (2 . 3))))",
         "[2, ]",
     },
+    {
+        "((lambda (x) 3 (* x x)) 5)",
+        "[25, ]",
+    },
+    {
+        "((lambda (x) 3 (* 3 3) (* x x)) 5)",
+        "[25, ]",
+    },
+    {
+        "(if (call/cc (lambda (c) (c #f) #t)) 1 2)",
+        "[2, ]",
+    },
 });
 
 int main(int argc, char** argv) {

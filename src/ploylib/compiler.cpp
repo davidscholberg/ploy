@@ -12,9 +12,7 @@ compiler::compiler(const std::vector<token>& tokens)
     : current_token_ptr{tokens.data()} {
     push_lambda();
 
-    while (!eof()) {
-        compile_expression();
-    }
+    compile_expression_sequence<&compiler::eof>();
 
     program.append_opcode(opcode::ret);
     pop_lambda();
@@ -66,6 +64,8 @@ void compiler::compile_boolean() {
 }
 
 void compiler::compile_procedure_call() {
+    push_coarity(coarity_type::one);
+
     program.append_opcode(opcode::push_frame_index);
 
     // compile procedure expression
@@ -77,6 +77,8 @@ void compiler::compile_procedure_call() {
 
     if (eof())
         throw std::runtime_error("unexpected eof in procedure call expression");
+
+    pop_coarity();
 
     current_token_ptr++;
 
@@ -170,6 +172,11 @@ void compiler::compile_identifier() {
 
         program.append_opcode(opcode::push_constant);
         program.append_byte(constant_index);
+    } else if (hr_lambda_name_to_code.contains(current_token_ptr->value)) {
+        uint8_t constant_index = program.push_hand_rolled_lambda(current_token_ptr->value);
+
+        program.append_opcode(opcode::push_constant);
+        program.append_byte(constant_index);
     } else {
         const auto [var_type, var_id] = get_var_type_and_id(current_token_ptr->value);
 
@@ -187,8 +194,12 @@ void compiler::compile_identifier() {
 void compiler::compile_if() {
     current_token_ptr++;
 
+    push_coarity(coarity_type::one);
+
     // compile test
     compile_expression();
+
+    pop_coarity();
 
     // compile conditional jump and leave space for jump offset
     const size_t first_backpatch_index = program.prepare_backpatch_jump(opcode::jump_forward_if_not);
@@ -244,10 +255,7 @@ void compiler::compile_lambda() {
     program.append_byte(argc);
 
     // compile lambda body
-    // TODO: might be a good idea to have an opcode that discards anything that the non-final
-    // expresssions of the lambda return.
-    while (!eof() and current_token_ptr->type != token_type::right_paren)
-        compile_expression();
+    compile_expression_sequence<&compiler::eof, &compiler::at_sentinel<token_type::right_paren>>();
     consume_token(token_type::right_paren);
 
     program.append_opcode(opcode::ret);
@@ -296,7 +304,7 @@ void compiler::consume_token(const token_type type) {
 }
 
 bool compiler::eof() {
-    return current_token_ptr->type == token_type::eof;
+    return at_sentinel<token_type::eof>();
 }
 
 scheme_constant compiler::generate_boolean_constant() {
@@ -323,6 +331,13 @@ scheme_constant compiler::generate_number_constant() {
         throw std::runtime_error("couldn't parse double");
 
     return double_value;
+}
+
+lambda_context& compiler::get_current_lambda() {
+    if (lambda_stack.empty())
+        throw std::runtime_error("no lambda context to get");
+
+    return lambda_stack.back();
 }
 
 std::pair<variable_type, uint8_t> compiler::get_var_type_and_id(const std::string_view& name) {
@@ -366,6 +381,35 @@ std::pair<variable_type, uint8_t> compiler::get_var_type_and_id(const std::strin
     return {variable_type::shared, new_var_id};
 }
 
+void compiler::pop_coarity() {
+    auto& current_lambda_ctx = get_current_lambda();
+
+    if (current_lambda_ctx.coarity_stack.empty())
+        throw std::runtime_error("can't pop from empty coarity stack");
+
+    const coarity_type old_type = current_lambda_ctx.coarity_stack.back();
+    current_lambda_ctx.coarity_stack.pop_back();
+
+    if (!current_lambda_ctx.coarity_stack.empty()) {
+        const coarity_type current_type = current_lambda_ctx.coarity_stack.back();
+
+        if (current_type != old_type)
+            program.append_opcode(current_type == coarity_type::any ? opcode::set_coarity_any : opcode::set_coarity_one);
+    }
+}
+
+void compiler::push_coarity(coarity_type type) {
+    auto& current_lambda_ctx = get_current_lambda();
+
+    if (
+        current_lambda_ctx.coarity_stack.empty()
+        or current_lambda_ctx.coarity_stack.back() != type
+    )
+        program.append_opcode(type == coarity_type::any ? opcode::set_coarity_any : opcode::set_coarity_one);
+
+    current_lambda_ctx.coarity_stack.emplace_back(type);
+}
+
 void compiler::pop_lambda() {
     // TODO: add this lambda context to the bytecode (only in debug mode, for the purpose of resolving var names in the disassembly)
     lambda_stack.pop_back();
@@ -382,4 +426,16 @@ void compiler::push_lambda() {
 
     program.push_lambda(lambda_constant_index);
     lambda_stack.emplace_back(lambda_context{});
+}
+
+void compiler::set_coarity(coarity_type type) {
+    auto& current_coarity_stack = get_current_lambda().coarity_stack;
+
+    if (current_coarity_stack.empty())
+        throw std::runtime_error("can't set coarity on empty coarity stack");
+
+    if (current_coarity_stack.back() != type) {
+        program.append_opcode(type == coarity_type::any ? opcode::set_coarity_any : opcode::set_coarity_one);
+        current_coarity_stack[current_coarity_stack.size() - 1] = type;
+    }
 }

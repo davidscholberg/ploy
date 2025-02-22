@@ -8,8 +8,11 @@
 #include "virtual_machine.hpp"
 
 static constexpr overload scheme_constant_to_stack_value_visitor{
+    [](const hand_rolled_lambda_constant& v) -> stack_value {
+        return stack_value{std::make_shared<lambda>(std::vector<scheme_value_ptr>{}, v.bytecode_offset)};
+    },
     [](const lambda_constant& v) -> stack_value {
-        return stack_value{std::make_shared<lambda>(lambda{{}, v})};
+        return stack_value{std::make_shared<lambda>(std::vector<scheme_value_ptr>{}, v.bytecode_offset)};
     },
     [](const auto& v) -> stack_value {
         return stack_value{v};
@@ -85,6 +88,13 @@ static void native_fold_left(void* vm_void_ptr, uint8_t argc) {
     };
 
     if constexpr (AllowNoArgs) {
+        // if vm coarity state is any, clear call frame and return immediately since this procedure
+        // produces no side effects.
+        if (vm->coarity_state == coarity_type::any) {
+            vm->clear_call_frame();
+            return;
+        }
+
         if (argc == 0) {
             vm->stack[vm->stack.size() - 1] = int64_t{Identity};
             return;
@@ -92,6 +102,13 @@ static void native_fold_left(void* vm_void_ptr, uint8_t argc) {
     } else {
         if (argc == 0)
             throw std::runtime_error("need at least one arg for this procedure");
+    }
+
+    // if vm coarity state is any, clear call frame and return immediately since this procedure
+    // produces no side effects.
+    if (vm->coarity_state == coarity_type::any) {
+        vm->clear_call_frame();
+        return;
     }
 
     size_t last_i = vm->stack.size() - 1;
@@ -116,6 +133,13 @@ void builtin_car(void* vm_void_ptr, uint8_t argc) {
 
     if (argc != 1)
         throw std::runtime_error("procedure needs one arg");
+
+    // if vm coarity state is any, clear call frame and return immediately since this procedure
+    // produces no side effects.
+    if (vm->coarity_state == coarity_type::any) {
+        vm->clear_call_frame();
+        return;
+    }
 
     size_t pair_i = vm->stack.size() - 1;
     size_t dest_i = pair_i - 1;
@@ -143,6 +167,13 @@ void builtin_cdr(void* vm_void_ptr, uint8_t argc) {
     if (argc != 1)
         throw std::runtime_error("procedure needs one arg");
 
+    // if vm coarity state is any, clear call frame and return immediately since this procedure
+    // produces no side effects.
+    if (vm->coarity_state == coarity_type::any) {
+        vm->clear_call_frame();
+        return;
+    }
+
     size_t pair_i = vm->stack.size() - 1;
     size_t dest_i = pair_i - 1;
     vm->stack[dest_i] = std::visit(
@@ -168,6 +199,13 @@ void builtin_cons(void* vm_void_ptr, uint8_t argc) {
 
     if (argc != 2)
         throw std::runtime_error("procedure needs two args");
+
+    // if vm coarity state is any, clear call frame and return immediately since this procedure
+    // produces no side effects.
+    if (vm->coarity_state == coarity_type::any) {
+        vm->clear_call_frame();
+        return;
+    }
 
     vm->execute_cons(2);
     vm->pop_excess(1);
@@ -200,6 +238,13 @@ void builtin_odd(void* vm_void_ptr, uint8_t argc) {
     if (argc != 1)
         throw std::runtime_error("procedure can only take one arg");
 
+    // if vm coarity state is any, clear call frame and return immediately since this procedure
+    // produces no side effects.
+    if (vm->coarity_state == coarity_type::any) {
+        vm->clear_call_frame();
+        return;
+    }
+
     size_t last_i = vm->stack.size() - 1;
 
     vm->stack[last_i - 1] = std::visit(unary_visitor, vm->stack[last_i]);
@@ -210,28 +255,56 @@ void builtin_plus(void* vm_void_ptr, uint8_t argc) {
     native_fold_left<std::plus, 0, true>(vm_void_ptr, argc);
 }
 
+void virtual_machine::clear_call_frame() {
+    stack.erase(stack.begin() + call_frame_stack.back().frame_index, stack.end());
+}
+
 void virtual_machine::execute(const bytecode& program) {
     begin_instruction_ptr = program.code.data();
     instruction_ptr = begin_instruction_ptr;
+    coarity_state = coarity_type::one;
 
     while (true) {
         switch (*instruction_ptr) {
             case static_cast<uint8_t>(opcode::push_constant):
                 instruction_ptr++;
+
+                if (coarity_state == coarity_type::any)
+                    break;
+
                 stack.emplace_back(std::visit(
                     scheme_constant_to_stack_value_visitor,
                     program.get_constant(*instruction_ptr)
                 ));
                 break;
             case static_cast<uint8_t>(opcode::cons):
+                if (coarity_state == coarity_type::any)
+                    break;
+
                 execute_cons();
                 stack.pop_back();
                 break;
             case static_cast<uint8_t>(opcode::push_shared_var):
+                if (coarity_state == coarity_type::any) {
+                    instruction_ptr++;
+                    break;
+                }
+
                 execute_push_shared_var();
                 break;
             case static_cast<uint8_t>(opcode::push_stack_var):
+                if (coarity_state == coarity_type::any) {
+                    instruction_ptr++;
+                    break;
+                }
+
                 execute_push_stack_var();
+                break;
+            case static_cast<uint8_t>(opcode::set_coarity_any):
+                coarity_state = coarity_type::any;
+                break;
+            case static_cast<uint8_t>(opcode::set_coarity_one):
+                coarity_state = coarity_type::one;
                 break;
             case static_cast<uint8_t>(opcode::capture_shared_var):
                 execute_capture_shared_var();
@@ -271,6 +344,9 @@ void virtual_machine::execute(const bytecode& program) {
                 continue;
             case static_cast<uint8_t>(opcode::halt):
                 return;
+            case static_cast<uint8_t>(opcode::push_continuation):
+                execute_push_continuation();
+                break;
         }
 
         instruction_ptr++;
@@ -321,6 +397,14 @@ void virtual_machine::execute_expect_argc() {
         throw std::runtime_error("expected argc does not match actual argc");
 }
 
+void virtual_machine::execute_push_continuation() {
+    stack.emplace_back(std::make_shared<continuation>(
+        call_frame_stack,
+        stack,
+        coarity_state
+    ));
+}
+
 void virtual_machine::execute_push_shared_var() {
     auto executing_lambda = get_executing_lambda();
 
@@ -365,6 +449,18 @@ void virtual_machine::execute_call() {
         current_call_frame.argc = argc;
         current_call_frame.return_ptr = instruction_ptr;
         instruction_ptr = begin_instruction_ptr + (*lambda_ptr_ptr)->bytecode_offset - 1;
+    } else if (const auto* continuation_ptr_ptr = std::get_if<continuation_ptr>(&callable_variant)) {
+        // save args passed to continuation
+        const std::vector<stack_value> cont_args{stack.cbegin() + current_call_frame.frame_index + 1, stack.cend()};
+
+        // restore continuation state
+        call_frame_stack = (*continuation_ptr_ptr)->frozen_call_frame_stack;
+        stack = (*continuation_ptr_ptr)->frozen_value_stack;
+        coarity_state = (*continuation_ptr_ptr)->frozen_coarity_state;
+
+        // append continuation args to stack and execute a lambda return
+        stack.insert(stack.end(), cont_args.cbegin(), cont_args.cend());
+        execute_ret();
     } else {
         throw std::runtime_error("expected callable at frame index");
     }
@@ -394,13 +490,19 @@ void virtual_machine::execute_ret() {
         throw std::runtime_error("call frame stack empty for ret");
 
     const auto& current_call_frame = call_frame_stack.back();
-    size_t shift_offset = current_call_frame.argc + 1;
-    for (size_t i = current_call_frame.frame_index + 1 + current_call_frame.argc; i < stack.size(); i++)
-        stack[i - shift_offset] = stack[i];
 
-    // TODO: i think we can remove the above for loop and just use this call to erase (but modify it
-    // to remove the callable and args from the stack)
-    stack.erase(stack.end() - shift_offset, stack.end());
+    if (coarity_state == coarity_type::one) {
+        size_t shift_offset = current_call_frame.argc + 1;
+        for (size_t i = current_call_frame.frame_index + 1 + current_call_frame.argc; i < stack.size(); i++)
+            stack[i - shift_offset] = stack[i];
+
+        // TODO: i think we can remove the above for loop and just use this call to erase (but modify it
+        // to remove the callable and args from the stack)
+        stack.erase(stack.end() - shift_offset, stack.end());
+    } else {
+        // remove entire call frame from value stack including any return values
+        clear_call_frame();
+    }
 
     instruction_ptr = call_frame_stack.back().return_ptr;
     call_frame_stack.pop_back();

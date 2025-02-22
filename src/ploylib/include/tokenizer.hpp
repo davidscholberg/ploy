@@ -83,6 +83,12 @@ struct token {
     token_type type;
 
     /**
+     * Signifies whether or not this token is the beginning of the final expression in an expression
+     * sequence. Used by the compiler to properly handle continuation arity of lambda bodies.
+     */
+    bool is_final = false;
+
+    /**
      * Initializes token value based on size.
      */
     token(const char* const first, size_t size, const token_type type)
@@ -130,6 +136,11 @@ struct tokenizer {
     const char* current_ptr;
 
     /**
+     * Tracks the locations of initial tokens of expression sequences.
+     */
+    std::vector<std::vector<size_t>> expression_sequence_stack;
+
+    /**
      * Adds given token of given size to token vector. Useful for tokens of fixed value.
      */
     void add_token(size_t size, token_type type);
@@ -158,6 +169,22 @@ struct tokenizer {
      * Adds string token to token vector.
      */
     void add_string_token();
+
+    /**
+     * Pops an expression sequence, marking the token that starts the final expression.
+     */
+    void pop_expression_sequence();
+
+    /**
+     * Pushes the location of the current token to the current expression sequence.
+     */
+    void push_expression();
+
+    /**
+     * Pushes a new expression sequence (which is itself an expression and therefore gets pushed as
+     * well.
+     */
+    void push_expression_sequence();
 };
 
 /**

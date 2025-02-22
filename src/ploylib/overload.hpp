@@ -83,6 +83,10 @@ struct stack_value_formatter_overload {
         return std::format("bp: {}", reinterpret_cast<void*>(v));
     }
 
+    std::string operator()(const continuation_ptr& v) const {
+        return std::format("cont: {}", reinterpret_cast<const void*>(v->frozen_call_frame_stack.back().return_ptr));
+    }
+
     std::string operator()(const lambda_ptr& v) const {
         return std::format("lambda: {}", v->bytecode_offset);
     }

@@ -173,8 +173,33 @@ void tokenizer::add_string_token() {
     current_ptr++;
 }
 
+void tokenizer::push_expression() {
+    if (tokens.size() > 1 and tokens[tokens.size() - 2].type == token_type::single_quote)
+        return;
+
+    expression_sequence_stack.back().emplace_back(tokens.size() - 1);
+}
+
+void tokenizer::push_expression_sequence() {
+    push_expression();
+    expression_sequence_stack.emplace_back();
+}
+
+void tokenizer::pop_expression_sequence() {
+    if (expression_sequence_stack.empty())
+        throw std::runtime_error("can't pop from empty expression sequence stack");
+
+    const auto& expression_sequence = expression_sequence_stack.back();
+    if (expression_sequence.empty())
+        throw std::runtime_error("no expressions in expression sequence");
+
+    tokens[expression_sequence.back()].is_final = true;
+    expression_sequence_stack.pop_back();
+}
+
 tokenizer::tokenizer(const char* const source) {
     current_ptr = source;
+    expression_sequence_stack.emplace_back();
 
     while (*current_ptr != 0) {
         const char current_char = *current_ptr;
@@ -186,20 +211,33 @@ tokenizer::tokenizer(const char* const source) {
 
         switch (current_char) {
             case '(':
-                add_token(1, token_type::left_paren); break;
+                add_token(1, token_type::left_paren);
+                push_expression_sequence();
+                break;
             case ')':
-                add_token(1, token_type::right_paren); break;
+                add_token(1, token_type::right_paren);
+                pop_expression_sequence();
+                break;
             case '\'':
-                add_token(1, token_type::single_quote); break;
+                add_token(1, token_type::single_quote);
+                push_expression();
+                break;
             case '.':
-                add_token(1, token_type::dot); break;
+                add_token(1, token_type::dot);
+                break;
             case '#':
-                add_hash_token(); break;
+                add_hash_token();
+                push_expression();
+                break;
             case '"':
-                add_string_token(); break;
+                add_string_token();
+                push_expression();
+                break;
             case '-':
             case '+':
-                add_minus_or_plus_token(); break;
+                add_minus_or_plus_token();
+                push_expression();
+                break;
             default:
                 if (is_numeric(current_char))
                     add_number_token();
@@ -207,8 +245,14 @@ tokenizer::tokenizer(const char* const source) {
                     add_identifier_token();
                 else
                     throw std::runtime_error("unexpected first character of token");
+                push_expression();
         }
     }
+
+    if (expression_sequence_stack.size() != 1)
+        throw std::runtime_error("unexpected expression stack size");
+
+    pop_expression_sequence();
 
     tokens.emplace_back(current_ptr, current_ptr, token_type::eof);
 }

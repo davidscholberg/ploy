@@ -17,7 +17,8 @@
 enum class opcode : uint8_t {
 
     /**
-     * Call the builtin procedure or lambda located at the current call frame on the stack.
+     * Call the callable located at the current call frame on the stack. Enforces a continuation
+     * arity of one (meaning only one return value is allowed).
      */
     call,
 
@@ -72,6 +73,12 @@ enum class opcode : uint8_t {
     push_constant,
 
     /**
+     * Push a continuation object to the stack that represents the continuation of the current
+     * lambda call.
+     */
+    push_continuation,
+
+    /**
      * Create a new call frame at the current stack top and push it to the call frame stack. The
      * call frame keeps track of a procedure's or lambda's arguments.
      */
@@ -94,6 +101,16 @@ enum class opcode : uint8_t {
      * the stack, and return to the called position.
      */
     ret,
+
+    /**
+     * Set coarity state in vm to coarity_type::any.
+     */
+    set_coarity_any,
+
+    /**
+     * Set coarity state in vm to coarity_type::one.
+     */
+    set_coarity_one,
 };
 
 struct opcode_no_arg {
@@ -112,11 +129,25 @@ struct opcode_jump {
     uint8_t jump_size[sizeof(jump_size_type)];
 };
 
+/**
+ * Contains information about an opcode.
+ */
 struct opcode_info {
+
+    /**
+     * Name of the opcode.
+     */
     const char* const name;
+
+    /**
+     * Size of the opcode in bytes (including arguments).
+     */
     uint8_t size;
 };
 
+/**
+ * Map of opcode numeric values to their opcode_info.
+ */
 inline constexpr auto opcode_infos = std::to_array<opcode_info>({
     {"call", sizeof(opcode_no_arg)},
     {"capture_shared_var", sizeof(opcode_one_arg)},
@@ -127,17 +158,27 @@ inline constexpr auto opcode_infos = std::to_array<opcode_info>({
     {"jump_forward", sizeof(opcode_jump)},
     {"jump_forward_if_not", sizeof(opcode_jump)},
     {"push_constant", sizeof(opcode_one_arg)},
+    {"push_continuation", sizeof(opcode_no_arg)},
     {"push_frame_index", sizeof(opcode_no_arg)},
     {"push_shared_var", sizeof(opcode_one_arg)},
     {"push_stack_var", sizeof(opcode_one_arg)},
     {"ret", sizeof(opcode_no_arg)},
+    {"set_coarity_any", sizeof(opcode_no_arg)},
+    {"set_coarity_one", sizeof(opcode_no_arg)},
 });
 
+/**
+ * Temporary structure for holding the bytecode of a lambda before it is concatenated to the final
+ * bytecode array. Also contains the lambda_constant id it is associated with.
+ */
 struct lambda_code {
     std::vector<uint8_t> code;
     uint8_t lambda_constant_id;
 };
 
+/**
+ * Structure that holds the bytecode and scheme_constants resulting from compiling a scheme program.
+ */
 struct bytecode {
     std::vector<uint8_t> code;
 
@@ -149,9 +190,16 @@ struct bytecode {
     void backpatch_jump(const size_t jump_size_index);
     void concat_blocks();
     std::string disassemble() const;
+
     const scheme_constant& get_constant(uint8_t index) const;
     size_t prepare_backpatch_jump(const opcode jump_type);
     void pop_lambda();
+
+    /**
+     * Pushes a hand-rolled lambda to the compiled blocks stack. Returns the associated constant id.
+     */
+    uint8_t push_hand_rolled_lambda(const std::string_view& name);
+
     void push_lambda(uint8_t lambda_constant_index);
 
     template <typename T>

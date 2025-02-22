@@ -40,16 +40,39 @@ inline auto& get_bp_ptr_to_name() {
     return bp_ptr_to_name;
 }
 
-struct call_frame {
-    lambda_ptr executing_lambda;
-    size_t frame_index;
-    const uint8_t* return_ptr;
-    uint8_t argc;
+/**
+ * Maps the names of hand-rolled lambdas to their bytecode arrays.
+ */
+inline const std::unordered_map<std::string_view, std::vector<uint8_t>> hr_lambda_name_to_code{
+    {
+        "call/cc",
+        {
+            static_cast<uint8_t>(opcode::expect_argc), 1,
+            static_cast<uint8_t>(opcode::push_continuation),
+            static_cast<uint8_t>(opcode::set_coarity_one),
+            static_cast<uint8_t>(opcode::push_frame_index),
+            static_cast<uint8_t>(opcode::push_stack_var), 0,
+            static_cast<uint8_t>(opcode::push_stack_var), 1,
+            static_cast<uint8_t>(opcode::call),
+            static_cast<uint8_t>(opcode::ret),
+        },
+    },
 };
 
 struct virtual_machine {
     std::vector<call_frame> call_frame_stack;
     std::vector<stack_value> stack;
+
+    /**
+     * Current coarity state, which tells the vm how to handle return values and pushes to the value
+     * stack.
+     */
+    coarity_type coarity_state;
+
+    /**
+     * Removes all values belonging in the call frame from the value stack.
+     */
+    void clear_call_frame();
 
     void execute(const bytecode& p);
     void execute_cons(size_t dest_from_top);
@@ -79,6 +102,12 @@ struct virtual_machine {
     void execute_capture_shared_var();
     void execute_cons();
     void execute_expect_argc();
+
+    /**
+     * Pushes the current continuation to the value stack.
+     */
+    void execute_push_continuation();
+
     void execute_push_stack_var();
     void execute_push_shared_var();
     void execute_ret();
