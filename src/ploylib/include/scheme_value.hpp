@@ -22,28 +22,29 @@ using scheme_value_base = std::variant<
 >;
 
 /**
- * Scheme constant type used by the compiler to represent a hand-rolled lambda object. Hand-rolled
- * lambdas are lambdas that are pre-defined with hard-coded bytecode. This is typically reserved for
- * standard procedures that are uncompilable from scheme code or must call other lambdas.
+ * Scheme constant type used by the compiler to represent a hand-rolled procedure object.
+ * Hand-rolled procedures are procedures that are pre-defined with hard-coded bytecode. This is
+ * typically reserved for standard procedures that are uncompilable from scheme code or must call
+ * other lambdas.
  *
  * Objects of this struct are hashed based on the name field only.
  */
-struct hand_rolled_lambda_constant {
+struct hand_rolled_procedure_constant {
 
     /**
-     * Name of this lambda.
+     * Name of this procedure.
      */
     std::string_view name;
 
     /**
-     * Offset into the bytecode where the hand_rolled_lambda jumps to when called.
+     * Offset into the bytecode where the hand_rolled_procedure jumps to when called.
      */
     size_t bytecode_offset;
 
     /**
      * Equality overload for unordered_map key support. Only the name matters for comparison.
      */
-    auto operator==(const hand_rolled_lambda_constant& other) const {
+    auto operator==(const hand_rolled_procedure_constant& other) const {
         return name == other.name;
     }
 };
@@ -52,8 +53,8 @@ struct hand_rolled_lambda_constant {
  * std::hash specialization for unordered_map key support. Only the name matters for comparison.
  */
 template<>
-struct std::hash<hand_rolled_lambda_constant> {
-    auto operator()(const hand_rolled_lambda_constant& v) const {
+struct std::hash<hand_rolled_procedure_constant> {
+    auto operator()(const hand_rolled_procedure_constant& v) const {
         return std::hash<std::string_view>{}(v.name);
     }
 };
@@ -88,7 +89,7 @@ struct std::hash<lambda_constant> {
 
 using scheme_constant = template_appender<
     scheme_value_base,
-    hand_rolled_lambda_constant,
+    hand_rolled_procedure_constant,
     lambda_constant
 >::type;
 

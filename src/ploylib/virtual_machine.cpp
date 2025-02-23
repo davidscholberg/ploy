@@ -8,7 +8,7 @@
 #include "virtual_machine.hpp"
 
 static constexpr overload scheme_constant_to_stack_value_visitor{
-    [](const hand_rolled_lambda_constant& v) -> stack_value {
+    [](const hand_rolled_procedure_constant& v) -> stack_value {
         return stack_value{std::make_shared<lambda>(std::vector<scheme_value_ptr>{}, v.bytecode_offset)};
     },
     [](const lambda_constant& v) -> stack_value {

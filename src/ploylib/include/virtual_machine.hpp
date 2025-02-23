@@ -41,9 +41,9 @@ inline auto& get_bp_ptr_to_name() {
 }
 
 /**
- * Maps the names of hand-rolled lambdas to their bytecode arrays.
+ * Maps the names of hand-rolled procedures to their bytecode arrays.
  */
-inline const std::unordered_map<std::string_view, std::vector<uint8_t>> hr_lambda_name_to_code{
+inline const std::unordered_map<std::string_view, std::vector<uint8_t>> hrp_name_to_code{
     {
         "call/cc",
         {

@@ -202,9 +202,9 @@ struct bytecode {
     void pop_lambda();
 
     /**
-     * Pushes a hand-rolled lambda to the compiled blocks stack. Returns the associated constant id.
+     * Pushes a hand-rolled procedure to the compiled blocks stack. Returns the associated constant id.
      */
-    uint8_t push_hand_rolled_lambda(const std::string_view& name);
+    uint8_t push_hand_rolled_procedure(const std::string_view& name);
 
     void push_lambda(uint8_t lambda_constant_index);
 

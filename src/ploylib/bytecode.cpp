@@ -68,8 +68,8 @@ void bytecode::concat_blocks() {
     for (const auto& c : std::views::reverse(compiled_blocks)) {
         if (auto* const l_ptr = std::get_if<lambda_constant>(&(constants[c.lambda_constant_id])))
             l_ptr->bytecode_offset = code.size();
-        else if (auto* const hrl_ptr = std::get_if<hand_rolled_lambda_constant>(&(constants[c.lambda_constant_id])))
-            hrl_ptr->bytecode_offset = code.size();
+        else if (auto* const hrp_ptr = std::get_if<hand_rolled_procedure_constant>(&(constants[c.lambda_constant_id])))
+            hrp_ptr->bytecode_offset = code.size();
         else
             throw std::runtime_error("expected lambda constant");
         code.insert(code.end(), c.code.cbegin(), c.code.cend());
@@ -98,8 +98,8 @@ std::string bytecode::disassemble() const {
                 throw std::runtime_error("builtin procedure not found by address");
             return std::format("bp: {}", bp_ptr_to_name[v]);
         },
-        [](const hand_rolled_lambda_constant& v) {
-            return std::format("lambda: {}", v.name);
+        [](const hand_rolled_procedure_constant& v) {
+            return std::format("hrp: {}", v.name);
         },
         [&get_lambda_label](const lambda_constant& v) {
             return get_lambda_label(v.bytecode_offset);
@@ -137,8 +137,8 @@ std::string bytecode::disassemble() const {
     for (const auto& c : constants)
         if (const auto* const l_ptr = std::get_if<lambda_constant>(&c))
             offset_to_label_map[l_ptr->bytecode_offset] = std::format("{}:", get_lambda_label(l_ptr->bytecode_offset));
-        else if (const auto* const hrl_ptr = std::get_if<hand_rolled_lambda_constant>(&c))
-            offset_to_label_map[hrl_ptr->bytecode_offset] = std::format("lambda: {}:", hrl_ptr->name);
+        else if (const auto* const hrp_ptr = std::get_if<hand_rolled_procedure_constant>(&c))
+            offset_to_label_map[hrp_ptr->bytecode_offset] = std::format("hrp: {}:", hrp_ptr->name);
 
     const auto* const start_ptr = code.data();
     const auto disassembly_line_formatter = [&offset_to_label_map, start_ptr](
@@ -152,7 +152,7 @@ std::string bytecode::disassemble() const {
 
         if (offset_to_label_map.contains(offset)) {
             label = offset_to_label_map[offset];
-            if (label.starts_with("lambda"))
+            if (label.starts_with("lambda") or label.starts_with("hrp"))
                 newline = "\n";
         }
 
@@ -263,15 +263,15 @@ void bytecode::pop_lambda() {
     compiling_blocks.pop_back();
 }
 
-uint8_t bytecode::push_hand_rolled_lambda(const std::string_view& name) {
-    const hand_rolled_lambda_constant hrlc{name};
+uint8_t bytecode::push_hand_rolled_procedure(const std::string_view& name) {
+    const hand_rolled_procedure_constant hrpc{name};
 
-    if (constant_to_index_map.contains(hrlc)) {
-        return constant_to_index_map[hrlc];
+    if (constant_to_index_map.contains(hrpc)) {
+        return constant_to_index_map[hrpc];
     }
 
-    uint8_t constant_index = add_constant(hrlc);
-    compiled_blocks.emplace_back(hr_lambda_name_to_code.at(name), constant_index);
+    uint8_t constant_index = add_constant(hrpc);
+    compiled_blocks.emplace_back(hrp_name_to_code.at(name), constant_index);
 
     return constant_index;
 }

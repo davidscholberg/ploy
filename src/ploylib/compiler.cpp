@@ -172,8 +172,8 @@ void compiler::compile_identifier() {
 
         program.append_opcode(opcode::push_constant);
         program.append_byte(constant_index);
-    } else if (hr_lambda_name_to_code.contains(current_token_ptr->value)) {
-        uint8_t constant_index = program.push_hand_rolled_lambda(current_token_ptr->value);
+    } else if (hrp_name_to_code.contains(current_token_ptr->value)) {
+        uint8_t constant_index = program.push_hand_rolled_procedure(current_token_ptr->value);
 
         program.append_opcode(opcode::push_constant);
         program.append_byte(constant_index);
