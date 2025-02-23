@@ -117,6 +117,26 @@ using stack_value = template_appender<
 >::type;
 
 /**
+ * Enum that represents how the vm should handle the continuation arity (coarity) of a given
+ * expression (i.e. the number of values expected as results of the expression).
+ */
+enum class coarity_type {
+
+    /**
+     * Any number of values can result from the expression, and they will be discarded. Used for all
+     * non-final expressions of an expression sequence (e.g. a begin expression, a lambda body,
+     * etc.).
+     */
+    any,
+
+    /**
+     * Exactly one value is expected as a result of the expression. Used when evaluating procedure
+     * call arguments, if conditions, etc.
+     */
+    one,
+};
+
+/**
  * Structure for keeping track of calls in the vm.
  */
 struct call_frame {
@@ -143,26 +163,8 @@ struct call_frame {
      * Holds the argument count for the procedure once it is called.
      */
     uint8_t argc;
-};
 
-/**
- * Enum that represents how the vm should handle the continuation arity (coarity) of a given
- * expression (i.e. the number of values expected as results of the expression).
- */
-enum class coarity_type {
-
-    /**
-     * Any number of values can result from the expression, and they will be discarded. Used for all
-     * non-final expressions of an expression sequence (e.g. a begin expression, a lambda body,
-     * etc.).
-     */
-    any,
-
-    /**
-     * Exactly one value is expected as a result of the expression. Used when evaluating procedure
-     * call arguments, if conditions, etc.
-     */
-    one,
+    coarity_type return_coarity_state;
 };
 
 /**
@@ -187,6 +189,9 @@ struct continuation {
 
     /**
      * Copy of the vm's coarity_state at the moment the continuation is instantiated.
+     *
+     * NOTE: since we had to add the return coarity state to call frames for lambdas, it's possible
+     * that saving the coarity state here is entirely redundant.
      */
     coarity_type frozen_coarity_state;
 };

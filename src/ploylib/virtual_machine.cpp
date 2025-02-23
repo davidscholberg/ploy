@@ -452,6 +452,7 @@ void virtual_machine::execute_call() {
         current_call_frame.executing_lambda = *lambda_ptr_ptr;
         current_call_frame.argc = argc;
         current_call_frame.return_ptr = instruction_ptr;
+        current_call_frame.return_coarity_state = coarity_state;
         instruction_ptr = begin_instruction_ptr + (*lambda_ptr_ptr)->bytecode_offset - 1;
     } else if (const auto* continuation_ptr_ptr = std::get_if<continuation_ptr>(&callable_variant)) {
         // save args passed to continuation
@@ -494,6 +495,7 @@ void virtual_machine::execute_ret() {
         throw std::runtime_error("call frame stack empty for ret");
 
     const auto& current_call_frame = call_frame_stack.back();
+    coarity_state = current_call_frame.return_coarity_state;
 
     if (coarity_state == coarity_type::one) {
         size_t shift_offset = current_call_frame.argc + 1;

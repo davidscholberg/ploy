@@ -72,7 +72,7 @@ static constexpr auto source_output_pairs = std::to_array<std::pair<const char*,
         "[25, ]",
     },
     {
-        "((lambda (x) 3 (* 3 3) (* x x)) 5)",
+        "((lambda (x) 3 (* 3 3) ((lambda (y) y) x) (* x x)) 5)",
         "[25, ]",
     },
     {
