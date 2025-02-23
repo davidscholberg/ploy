@@ -54,6 +54,7 @@ inline const std::unordered_map<std::string_view, std::vector<uint8_t>> hr_lambd
             static_cast<uint8_t>(opcode::push_stack_var), 0,
             static_cast<uint8_t>(opcode::push_stack_var), 1,
             static_cast<uint8_t>(opcode::call),
+            static_cast<uint8_t>(opcode::delete_stack_var), 1,
             static_cast<uint8_t>(opcode::ret),
         },
     },

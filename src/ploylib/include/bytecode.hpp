@@ -42,6 +42,11 @@ enum class opcode : uint8_t {
     cons,
 
     /**
+     * Delete a stack var identified by the opcode's one byte argument from the stack.
+     */
+    delete_stack_var,
+
+    /**
      * Check to make sure that argc for the currently executing lambda is as expected. Only needed
      * for lambdas that have a fixed number of args. The one argument for this opcode is the argc to
      * expect.
@@ -153,6 +158,7 @@ inline constexpr auto opcode_infos = std::to_array<opcode_info>({
     {"capture_shared_var", sizeof(opcode_one_arg)},
     {"capture_stack_var", sizeof(opcode_one_arg)},
     {"cons", sizeof(opcode_no_arg)},
+    {"delete_stack_var", sizeof(opcode_one_arg)},
     {"expect_argc", sizeof(opcode_one_arg)},
     {"halt", sizeof(opcode_no_arg)},
     {"jump_forward", sizeof(opcode_jump)},

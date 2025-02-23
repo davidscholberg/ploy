@@ -347,6 +347,10 @@ void virtual_machine::execute(const bytecode& program) {
             case static_cast<uint8_t>(opcode::push_continuation):
                 execute_push_continuation();
                 break;
+            case static_cast<uint8_t>(opcode::delete_stack_var):
+                instruction_ptr++;
+                stack.erase(stack.begin() + get_executing_call_frame().frame_index + 1 + *instruction_ptr);
+                break;
         }
 
         instruction_ptr++;
@@ -493,6 +497,10 @@ void virtual_machine::execute_ret() {
 
     if (coarity_state == coarity_type::one) {
         size_t shift_offset = current_call_frame.argc + 1;
+
+        if (current_call_frame.frame_index + shift_offset != stack.size() - 1)
+            throw std::runtime_error("expected one return value");
+
         for (size_t i = current_call_frame.frame_index + 1 + current_call_frame.argc; i < stack.size(); i++)
             stack[i - shift_offset] = stack[i];
 

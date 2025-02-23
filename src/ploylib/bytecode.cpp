@@ -182,6 +182,9 @@ std::string bytecode::disassemble() const {
             case static_cast<uint8_t>(opcode::cons):
                 str += disassembly_line_formatter(instruction_ptr, "");
                 break;
+            case static_cast<uint8_t>(opcode::delete_stack_var):
+                str += disassembly_line_formatter(instruction_ptr, *(instruction_ptr + 1));
+                break;
             case static_cast<uint8_t>(opcode::expect_argc):
                 str += disassembly_line_formatter(instruction_ptr, *(instruction_ptr + 1));
                 break;
