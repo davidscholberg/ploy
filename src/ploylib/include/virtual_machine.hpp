@@ -9,9 +9,11 @@
 void builtin_car(void* vm_void_ptr, uint8_t argc);
 void builtin_cdr(void* vm_void_ptr, uint8_t argc);
 void builtin_cons(void* vm_void_ptr, uint8_t argc);
+void builtin_display(void* vm_void_ptr, uint8_t argc);
 void builtin_divide(void* vm_void_ptr, uint8_t argc);
 void builtin_minus(void* vm_void_ptr, uint8_t argc);
 void builtin_multiply(void* vm_void_ptr, uint8_t argc);
+void builtin_newline(void* vm_void_ptr, uint8_t argc);
 void builtin_odd(void* vm_void_ptr, uint8_t argc);
 void builtin_plus(void* vm_void_ptr, uint8_t argc);
 
@@ -19,9 +21,11 @@ inline const std::unordered_map<std::string_view, builtin_procedure> bp_name_to_
     {"cons", builtin_cons},
     {"car", builtin_car},
     {"cdr", builtin_cdr},
+    {"display", builtin_display},
     {"/", builtin_divide},
     {"-", builtin_minus},
     {"*", builtin_multiply},
+    {"newline", builtin_newline},
     {"odd?", builtin_odd},
     {"+", builtin_plus},
 };

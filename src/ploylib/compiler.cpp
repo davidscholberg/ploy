@@ -12,7 +12,7 @@ compiler::compiler(const std::vector<token>& tokens)
     : current_token_ptr{tokens.data()} {
     push_lambda();
 
-    compile_expression_sequence<&compiler::eof>();
+    compile_expression_sequence<coarity_type::any, &compiler::eof>();
 
     program.append_opcode(opcode::ret);
     pop_lambda();
@@ -255,7 +255,7 @@ void compiler::compile_lambda() {
     program.append_byte(argc);
 
     // compile lambda body
-    compile_expression_sequence<&compiler::eof, &compiler::at_sentinel<token_type::right_paren>>();
+    compile_expression_sequence<coarity_type::one, &compiler::eof, &compiler::at_sentinel<token_type::right_paren>>();
     consume_token(token_type::right_paren);
 
     program.append_opcode(opcode::ret);

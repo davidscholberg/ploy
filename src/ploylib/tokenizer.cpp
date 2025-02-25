@@ -238,6 +238,10 @@ tokenizer::tokenizer(const char* const source) {
                 add_minus_or_plus_token();
                 push_expression();
                 break;
+            case ';':
+                while (*current_ptr != '\n' and *current_ptr != 0)
+                    current_ptr++;
+                break;
             default:
                 if (is_numeric(current_char))
                     add_number_token();

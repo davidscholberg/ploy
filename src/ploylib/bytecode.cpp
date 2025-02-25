@@ -54,9 +54,11 @@ void bytecode::backpatch_jump(const size_t backpatch_index) {
 }
 
 void bytecode::concat_blocks() {
+    code.emplace_back(static_cast<uint8_t>(opcode::set_coarity_one));
     code.emplace_back(static_cast<uint8_t>(opcode::push_frame_index));
     code.emplace_back(static_cast<uint8_t>(opcode::push_constant));
     code.emplace_back(compiled_blocks.back().lambda_constant_id);
+    code.emplace_back(static_cast<uint8_t>(opcode::set_coarity_any));
     code.emplace_back(static_cast<uint8_t>(opcode::call));
     code.emplace_back(static_cast<uint8_t>(opcode::halt));
 

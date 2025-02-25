@@ -1,6 +1,7 @@
 #include <format>
 #include <functional>
 #include <memory>
+#include <print>
 #include <stdexcept>
 #include <variant>
 
@@ -211,6 +212,18 @@ void builtin_cons(void* vm_void_ptr, uint8_t argc) {
     vm->pop_excess(1);
 }
 
+void builtin_display(void* vm_void_ptr, uint8_t argc) {
+    virtual_machine* vm = static_cast<virtual_machine*>(vm_void_ptr);
+
+    // TODO: need to update this when ports are added
+    if (argc != 1)
+        throw std::runtime_error("procedure only takes one arg");
+
+    std::print("{}", std::visit(stack_value_formatter_overload{}, vm->stack.back()));
+
+    vm->clear_call_frame();
+}
+
 void builtin_divide(void* vm_void_ptr, uint8_t argc) {
     native_fold_left<std::divides, 1, false>(vm_void_ptr, argc);
 }
@@ -221,6 +234,18 @@ void builtin_minus(void* vm_void_ptr, uint8_t argc) {
 
 void builtin_multiply(void* vm_void_ptr, uint8_t argc) {
     native_fold_left<std::multiplies, 1, true>(vm_void_ptr, argc);
+}
+
+void builtin_newline(void* vm_void_ptr, uint8_t argc) {
+    virtual_machine* vm = static_cast<virtual_machine*>(vm_void_ptr);
+
+    // TODO: need to update this when ports are added
+    if (argc != 0)
+        throw std::runtime_error("procedure takes no args");
+
+    std::print("\n");
+
+    vm->clear_call_frame();
 }
 
 void builtin_odd(void* vm_void_ptr, uint8_t argc) {
@@ -262,7 +287,6 @@ void virtual_machine::clear_call_frame() {
 void virtual_machine::execute(const bytecode& program) {
     begin_instruction_ptr = program.code.data();
     instruction_ptr = begin_instruction_ptr;
-    coarity_state = coarity_type::one;
 
     while (true) {
         switch (*instruction_ptr) {

@@ -69,23 +69,29 @@ struct compiler {
     void compile_pair();
 
     /**
-     * Compiles a sequence of expressions that, when evaluated at runtime, discards results from all
-     * but the last expression in the sequence. Used for expressions in the global scope, lambda
-     * bodies, begin expressions, etc.
+     * Compiles a sequence of expressions. If FinalCoarity is one, results from all but the last
+     * expression in the sequence will be discarded, otherwise results from all expressions will be
+     * discarded. Used for expressions in the global scope, lambda bodies, begin expressions, etc.
      */
-    template <auto... SentinelChecks>
+    template <coarity_type FinalCoarity, auto... SentinelChecks>
     void compile_expression_sequence() {
-        if (current_token_ptr->is_final)
-            push_coarity(coarity_type::one);
-        else
+        if constexpr (FinalCoarity == coarity_type::one) {
+            if (current_token_ptr->is_final)
+                push_coarity(coarity_type::one);
+            else
+                push_coarity(coarity_type::any);
+        } else {
             push_coarity(coarity_type::any);
+        }
+
         compile_expression();
 
         while ((!(this->*SentinelChecks)() and ...)) {
-            if (current_token_ptr->is_final)
-                set_coarity(coarity_type::one);
-            else
-                set_coarity(coarity_type::any);
+            if constexpr (FinalCoarity == coarity_type::one) {
+                if (current_token_ptr->is_final)
+                    set_coarity(coarity_type::one);
+            }
+
             compile_expression();
         }
 

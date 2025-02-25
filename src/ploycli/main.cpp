@@ -45,9 +45,6 @@ int main(int argc, char** argv) {
 
         virtual_machine vm;
         vm.execute(c.program);
-
-        if (!vm.stack.empty())
-            std::print("{}\n", vm.stack_top_to_string());
     } catch (std::exception& e) {
         std::print("error: {}\n", e.what());
         return 1;
