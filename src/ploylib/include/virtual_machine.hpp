@@ -11,6 +11,7 @@ void builtin_cdr(void* vm_void_ptr, uint8_t argc);
 void builtin_cons(void* vm_void_ptr, uint8_t argc);
 void builtin_display(void* vm_void_ptr, uint8_t argc);
 void builtin_divide(void* vm_void_ptr, uint8_t argc);
+void builtin_eqv(void* vm_void_ptr, uint8_t argc);
 void builtin_minus(void* vm_void_ptr, uint8_t argc);
 void builtin_multiply(void* vm_void_ptr, uint8_t argc);
 void builtin_newline(void* vm_void_ptr, uint8_t argc);
@@ -23,6 +24,7 @@ inline const std::unordered_map<std::string_view, builtin_procedure> bp_name_to_
     {"cdr", builtin_cdr},
     {"display", builtin_display},
     {"/", builtin_divide},
+    {"eqv?", builtin_eqv},
     {"-", builtin_minus},
     {"*", builtin_multiply},
     {"newline", builtin_newline},
@@ -116,6 +118,8 @@ struct virtual_machine {
     void execute_push_stack_var();
     void execute_push_shared_var();
     void execute_ret();
+    void execute_set_stack_var();
+    void execute_set_shared_var();
     call_frame& get_executing_call_frame();
     lambda_ptr& get_executing_lambda();
 };

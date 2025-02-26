@@ -226,6 +226,12 @@ std::string bytecode::disassemble() const {
             case static_cast<uint8_t>(opcode::set_coarity_one):
                 str += disassembly_line_formatter(instruction_ptr, "");
                 break;
+            case static_cast<uint8_t>(opcode::set_shared_var):
+                str += disassembly_line_formatter(instruction_ptr, *(instruction_ptr + 1));
+                break;
+            case static_cast<uint8_t>(opcode::set_stack_var):
+                str += disassembly_line_formatter(instruction_ptr, *(instruction_ptr + 1));
+                break;
             case static_cast<uint8_t>(opcode::ret):
                 str += disassembly_line_formatter(instruction_ptr, "");
                 break;

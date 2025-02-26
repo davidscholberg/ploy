@@ -116,6 +116,18 @@ enum class opcode : uint8_t {
      * Set coarity state in vm to coarity_type::one.
      */
     set_coarity_one,
+
+    /**
+     * Set the value of a shared var identified by the opcode's one byte argument to the value at
+     * the stack top.
+     */
+    set_shared_var,
+
+    /**
+     * Set the value of a stack var identified by the opcode's one byte argument to the value at
+     * the stack top.
+     */
+    set_stack_var,
 };
 
 /**
@@ -183,6 +195,8 @@ inline constexpr auto opcode_infos = std::to_array<opcode_info>({
     {"ret", sizeof(opcode_no_arg)},
     {"set_coarity_any", sizeof(opcode_no_arg)},
     {"set_coarity_one", sizeof(opcode_no_arg)},
+    {"set_shared_var", sizeof(opcode_one_arg)},
+    {"set_stack_var", sizeof(opcode_one_arg)},
 });
 
 /**

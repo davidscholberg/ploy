@@ -67,6 +67,7 @@ struct compiler {
     void compile_lambda();
     void compile_number();
     void compile_pair();
+    void compile_set();
 
     /**
      * Compiles a sequence of expressions. If FinalCoarity is one, results from all but the last

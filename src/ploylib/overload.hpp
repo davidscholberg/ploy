@@ -70,6 +70,7 @@ struct stack_value_overload : Ts... {
  * purpose of generating external representations (i.e. strings) of stack_values. Meant to be used
  * with std::visit.
  */
+template <bool ShowSchemeValuePtr>
 struct stack_value_formatter_overload {
     std::string operator()(const empty_list& v) const {
         return std::format("()");
@@ -133,15 +134,24 @@ struct stack_value_formatter_overload {
     }
 
     std::string operator()(const scheme_value_ptr& a) const {
-        return std::format(
-            "ptr: {}",
-            std::visit(
+        if constexpr (ShowSchemeValuePtr) {
+            return std::format(
+                "ptr: {}",
+                std::visit(
+                    [this](const auto& a) {
+                        return (*this)(a);
+                    },
+                    *a
+                )
+            );
+        } else {
+            return std::visit(
                 [this](const auto& a) {
                     return (*this)(a);
                 },
                 *a
-            )
-        );
+            );
+        }
     }
 
     std::string operator()(const auto& v) const {

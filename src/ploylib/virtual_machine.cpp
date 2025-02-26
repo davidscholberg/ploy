@@ -219,13 +219,43 @@ void builtin_display(void* vm_void_ptr, uint8_t argc) {
     if (argc != 1)
         throw std::runtime_error("procedure only takes one arg");
 
-    std::print("{}", std::visit(stack_value_formatter_overload{}, vm->stack.back()));
+    std::print("{}", std::visit(stack_value_formatter_overload<false>{}, vm->stack.back()));
 
     vm->clear_call_frame();
 }
 
 void builtin_divide(void* vm_void_ptr, uint8_t argc) {
     native_fold_left<std::divides, 1, false>(vm_void_ptr, argc);
+}
+
+void builtin_eqv(void* vm_void_ptr, uint8_t argc) {
+    virtual_machine* vm = static_cast<virtual_machine*>(vm_void_ptr);
+
+    if (argc != 2)
+        throw std::runtime_error("procedure needs two args");
+
+    // if vm coarity state is any, clear call frame and return immediately since this procedure
+    // produces no side effects.
+    if (vm->coarity_state == coarity_type::any) {
+        vm->clear_call_frame();
+        return;
+    }
+
+    constexpr stack_value_overload eqv_visitor{
+        []<typename T>(const T& a, const T& b) -> bool {
+            return a == b;
+        },
+        []<typename T, typename U>(const T&, const U&) -> bool {
+            return false;
+        },
+    };
+
+    size_t second_i = vm->stack.size() - 1;
+    size_t first_i = second_i - 1;
+
+    vm->stack[first_i - 1] = std::visit(eqv_visitor, vm->stack[first_i], vm->stack[second_i]);
+
+    vm->pop_excess(1);
 }
 
 void builtin_minus(void* vm_void_ptr, uint8_t argc) {
@@ -324,6 +354,12 @@ void virtual_machine::execute(const bytecode& program) {
 
                 execute_push_stack_var();
                 break;
+            case static_cast<uint8_t>(opcode::set_shared_var):
+                execute_set_shared_var();
+                break;
+            case static_cast<uint8_t>(opcode::set_stack_var):
+                execute_set_stack_var();
+                break;
             case static_cast<uint8_t>(opcode::set_coarity_any):
                 coarity_state = coarity_type::any;
                 break;
@@ -388,7 +424,7 @@ void virtual_machine::execute_capture_shared_var() {
     auto executing_lambda = get_executing_lambda();
 
     if (shared_var_index >= executing_lambda->captures.size())
-        throw std::runtime_error("parent lambda capture index out of bounds");
+        throw std::runtime_error("parent lambda capture index out of bounds for capture");
 
     const auto current_lambda_variant = stack.back();
     if (auto* current_lambda_ptr = std::get_if<lambda_ptr>(&current_lambda_variant)) {
@@ -439,9 +475,12 @@ void virtual_machine::execute_push_shared_var() {
     instruction_ptr++;
     size_t shared_var_index = *instruction_ptr;
     if (shared_var_index >= executing_lambda->captures.size())
-        throw std::runtime_error("parent lambda capture index out of bounds");
+        throw std::runtime_error("lambda capture index out of bounds for push");
 
-    stack.emplace_back(executing_lambda->captures[shared_var_index]);
+    stack.emplace_back(std::visit(
+        scheme_value_to_stack_value_visitor,
+        *(executing_lambda->captures[shared_var_index])
+    ));
 }
 
 void virtual_machine::execute_push_stack_var() {
@@ -451,7 +490,40 @@ void virtual_machine::execute_push_stack_var() {
     if (stack_var_index >= stack.size())
         throw std::runtime_error("stack empty for capture");
 
-    stack.emplace_back(stack[stack_var_index]);
+    if (const auto* sc_ptr_ptr = std::get_if<scheme_value_ptr>(&stack[stack_var_index]))
+        stack.emplace_back(std::visit(scheme_value_to_stack_value_visitor, **sc_ptr_ptr));
+    else
+        stack.emplace_back(stack[stack_var_index]);
+}
+
+void virtual_machine::execute_set_shared_var() {
+    auto executing_lambda = get_executing_lambda();
+
+    instruction_ptr++;
+    size_t shared_var_index = *instruction_ptr;
+    if (shared_var_index >= executing_lambda->captures.size())
+        throw std::runtime_error("lambda capture index out of bounds for set");
+
+    *(executing_lambda->captures[shared_var_index]) = std::visit(stack_value_to_scheme_value_visitor, stack.back());
+
+    stack.pop_back();
+}
+
+void virtual_machine::execute_set_stack_var() {
+    instruction_ptr++;
+    size_t stack_var_index = get_executing_call_frame().frame_index + 1 + (*instruction_ptr);
+
+    if (stack_var_index >= stack.size())
+        throw std::runtime_error("invalid stack index for set");
+
+    if (const auto* dest_sc_ptr_ptr = std::get_if<scheme_value_ptr>(&stack[stack_var_index]))
+        **dest_sc_ptr_ptr = std::visit(stack_value_to_scheme_value_visitor, stack.back());
+    else if (const auto* source_sc_ptr_ptr = std::get_if<scheme_value_ptr>(&stack.back()))
+        stack[stack_var_index] = std::visit(scheme_value_to_stack_value_visitor, **source_sc_ptr_ptr);
+    else
+        stack[stack_var_index] = stack.back();
+
+    stack.pop_back();
 }
 
 void virtual_machine::execute_call() {
@@ -467,7 +539,7 @@ void virtual_machine::execute_call() {
     if (argc > std::numeric_limits<uint8_t>::max())
         throw std::runtime_error("exceeded max number of args allowed");
 
-    const auto callable_variant = stack[current_call_frame.frame_index];
+    const auto& callable_variant = std::visit(stack_value_to_scheme_value_visitor, stack[current_call_frame.frame_index]);
     if (const auto* bp_ptr = std::get_if<builtin_procedure>(&callable_variant)) {
         (*bp_ptr)(this, argc);
 
@@ -564,13 +636,13 @@ std::string virtual_machine::stack_top_to_string() const {
     if (stack.empty())
         throw std::runtime_error("stack empty");
 
-    return std::visit(stack_value_formatter_overload{}, stack.back());
+    return std::visit(stack_value_formatter_overload<true>{}, stack.back());
 }
 
 std::string virtual_machine::stack_to_string() const {
     std::string str = "[";
     for (const auto& v : stack)
-        str += std::visit(stack_value_formatter_overload{}, v) + ", ";
+        str += std::visit(stack_value_formatter_overload<true>{}, v) + ", ";
 
     str += "]";
     return str;

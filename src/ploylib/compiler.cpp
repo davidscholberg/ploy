@@ -109,6 +109,8 @@ void compiler::compile_expression() {
                 compile_if();
             else if (current_token_ptr->value == "lambda")
                 compile_lambda();
+            else if (current_token_ptr->value == "set!")
+                compile_set();
             else if (current_token_ptr->value == "quote")
                 compile_external_representation();
             else
@@ -296,6 +298,31 @@ void compiler::compile_pair() {
     program.append_opcode(opcode::cons);
 }
 
+void compiler::compile_set() {
+    current_token_ptr++;
+
+    if (eof())
+        throw std::runtime_error("unexpected eof after set!");
+
+    const auto [var_type, var_id] = get_var_type_and_id(current_token_ptr->value);
+
+    push_coarity(coarity_type::one);
+
+    current_token_ptr++;
+    compile_expression();
+
+    if (var_type == variable_type::stack)
+        program.append_opcode(opcode::set_stack_var);
+    else
+        program.append_opcode(opcode::set_shared_var);
+
+    program.append_byte(var_id);
+
+    pop_coarity();
+
+    consume_token(token_type::right_paren);
+}
+
 void compiler::consume_token(const token_type type) {
     if (current_token_ptr->type != type)
         throw std::runtime_error(std::format("unexpected token: {}", static_cast<uint8_t>(current_token_ptr->type)));
@@ -351,17 +378,25 @@ std::pair<variable_type, uint8_t> compiler::get_var_type_and_id(const std::strin
     bool is_current_scope = (scope_depth == lambda_stack.size() - 1);
     auto& scope_ctx = lambda_stack[scope_depth];
 
-    if (scope_ctx.shared_vars.contains(name))
-        return {variable_type::shared, scope_ctx.shared_vars[name]};
-
     if (scope_ctx.stack_vars.contains(name)) {
-        if (is_current_scope)
-            return {variable_type::stack, scope_ctx.stack_vars[name]};
+        uint8_t var_id = scope_ctx.stack_vars[name];
 
-        program.append_opcode(opcode::capture_stack_var, scope_depth);
-        program.append_byte(scope_ctx.stack_vars[name], scope_depth);
+        if (!is_current_scope) {
+            program.append_opcode(opcode::capture_stack_var, scope_depth);
+            program.append_byte(scope_ctx.stack_vars[name], scope_depth);
+        }
 
-        uint8_t var_id = add_shared_var(name, scope_depth);
+        return {variable_type::stack, var_id};
+    }
+
+    if (scope_ctx.shared_vars.contains(name)) {
+        uint8_t var_id = scope_ctx.shared_vars[name];
+
+        if (!is_current_scope) {
+            program.append_opcode(opcode::capture_shared_var, scope_depth);
+            program.append_byte(scope_ctx.shared_vars[name], scope_depth);
+        }
+
         return {variable_type::shared, var_id};
     }
 
@@ -370,14 +405,13 @@ std::pair<variable_type, uint8_t> compiler::get_var_type_and_id(const std::strin
 
     const auto [var_type, var_id] = get_var_type_and_id(name, scope_depth - 1);
 
+    uint8_t new_var_id = add_shared_var(name, scope_depth);
+
     if (!is_current_scope) {
         program.append_opcode(opcode::capture_shared_var, scope_depth);
-        program.append_byte(var_id, scope_depth);
+        program.append_byte(new_var_id, scope_depth);
     }
 
-    // add shared_var to scope_ctx
-    // return type and new id
-    uint8_t new_var_id = add_shared_var(name, scope_depth);
     return {variable_type::shared, new_var_id};
 }
 
