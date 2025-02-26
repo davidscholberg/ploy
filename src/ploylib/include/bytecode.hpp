@@ -17,6 +17,12 @@
 enum class opcode : uint8_t {
 
     /**
+     * Increments the executing lambda's stack var count. The new stack var is expected to be at the
+     * stack top already.
+     */
+    add_stack_var,
+
+    /**
      * Call the callable located at the current call frame on the stack. Enforces a continuation
      * arity of one (meaning only one return value is allowed).
      */
@@ -40,11 +46,6 @@ enum class opcode : uint8_t {
      * the stack top.
      */
     cons,
-
-    /**
-     * Delete a stack var identified by the opcode's one byte argument from the stack.
-     */
-    delete_stack_var,
 
     /**
      * Check to make sure that argc for the currently executing lambda is as expected. Only needed
@@ -178,11 +179,11 @@ struct opcode_info {
  * Map of opcode numeric values to their opcode_info.
  */
 inline constexpr auto opcode_infos = std::to_array<opcode_info>({
+    {"add_stack_var", sizeof(opcode_no_arg)},
     {"call", sizeof(opcode_no_arg)},
     {"capture_shared_var", sizeof(opcode_one_arg)},
     {"capture_stack_var", sizeof(opcode_one_arg)},
     {"cons", sizeof(opcode_no_arg)},
-    {"delete_stack_var", sizeof(opcode_one_arg)},
     {"expect_argc", sizeof(opcode_one_arg)},
     {"halt", sizeof(opcode_no_arg)},
     {"jump_forward", sizeof(opcode_jump)},

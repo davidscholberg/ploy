@@ -55,12 +55,12 @@ inline const std::unordered_map<std::string_view, std::vector<uint8_t>> hrp_name
         {
             static_cast<uint8_t>(opcode::expect_argc), 1,
             static_cast<uint8_t>(opcode::push_continuation),
+            static_cast<uint8_t>(opcode::add_stack_var),
             static_cast<uint8_t>(opcode::set_coarity_one),
             static_cast<uint8_t>(opcode::push_frame_index),
             static_cast<uint8_t>(opcode::push_stack_var), 0,
             static_cast<uint8_t>(opcode::push_stack_var), 1,
             static_cast<uint8_t>(opcode::call),
-            static_cast<uint8_t>(opcode::delete_stack_var), 1,
             static_cast<uint8_t>(opcode::ret),
         },
     },

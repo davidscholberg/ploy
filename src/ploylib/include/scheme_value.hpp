@@ -195,10 +195,15 @@ struct call_frame {
     const uint8_t* return_ptr;
 
     /**
-     * Holds the argument count for the procedure once it is called.
+     * Holds the number of stack vars that this call frame has while executing. This will be the
+     * argument count for the procedure right when it is called, but it can be incremented in the
+     * middle of execution as more stack vars are added.
      */
-    uint8_t argc;
+    uint8_t stack_var_count;
 
+    /**
+     * Holds the coarity state that the vm was in when this lambda was called.
+     */
     coarity_type return_coarity_state;
 };
 

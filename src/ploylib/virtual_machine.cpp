@@ -360,6 +360,9 @@ void virtual_machine::execute(const bytecode& program) {
             case static_cast<uint8_t>(opcode::set_stack_var):
                 execute_set_stack_var();
                 break;
+            case static_cast<uint8_t>(opcode::add_stack_var):
+                get_executing_call_frame().stack_var_count++;
+                break;
             case static_cast<uint8_t>(opcode::set_coarity_any):
                 coarity_state = coarity_type::any;
                 break;
@@ -407,10 +410,6 @@ void virtual_machine::execute(const bytecode& program) {
             case static_cast<uint8_t>(opcode::push_continuation):
                 execute_push_continuation();
                 break;
-            case static_cast<uint8_t>(opcode::delete_stack_var):
-                instruction_ptr++;
-                stack.erase(stack.begin() + get_executing_call_frame().frame_index + 1 + *instruction_ptr);
-                break;
         }
 
         instruction_ptr++;
@@ -457,7 +456,7 @@ void virtual_machine::execute_expect_argc() {
         throw std::runtime_error("call frame stack empty for expect_argc");
 
     instruction_ptr++;
-    if (*instruction_ptr != call_frame_stack.back().argc)
+    if (*instruction_ptr != call_frame_stack.back().stack_var_count)
         throw std::runtime_error("expected argc does not match actual argc");
 }
 
@@ -546,7 +545,7 @@ void virtual_machine::execute_call() {
         call_frame_stack.pop_back();
     } else if (const auto* lambda_ptr_ptr = std::get_if<lambda_ptr>(&callable_variant)) {
         current_call_frame.executing_lambda = *lambda_ptr_ptr;
-        current_call_frame.argc = argc;
+        current_call_frame.stack_var_count = argc;
         current_call_frame.return_ptr = instruction_ptr;
         current_call_frame.return_coarity_state = coarity_state;
         instruction_ptr = begin_instruction_ptr + (*lambda_ptr_ptr)->bytecode_offset - 1;
@@ -594,17 +593,13 @@ void virtual_machine::execute_ret() {
     coarity_state = current_call_frame.return_coarity_state;
 
     if (coarity_state == coarity_type::one) {
-        size_t shift_offset = current_call_frame.argc + 1;
+        size_t frame_start = current_call_frame.frame_index;
+        size_t return_value_start = frame_start + 1 + current_call_frame.stack_var_count;
 
-        if (current_call_frame.frame_index + shift_offset != stack.size() - 1)
+        if (return_value_start != stack.size() - 1)
             throw std::runtime_error("expected one return value");
 
-        for (size_t i = current_call_frame.frame_index + 1 + current_call_frame.argc; i < stack.size(); i++)
-            stack[i - shift_offset] = stack[i];
-
-        // TODO: i think we can remove the above for loop and just use this call to erase (but modify it
-        // to remove the callable and args from the stack)
-        stack.erase(stack.end() - shift_offset, stack.end());
+        stack.erase(stack.begin() + frame_start, stack.begin() + return_value_start);
     } else {
         // remove entire call frame from value stack including any return values
         clear_call_frame();

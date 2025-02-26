@@ -63,6 +63,29 @@ void compiler::compile_boolean() {
     current_token_ptr++;
 }
 
+void compiler::compile_define() {
+    current_token_ptr++;
+
+    if (eof())
+        throw std::runtime_error("unexpected eof after define");
+
+    if (current_token_ptr->type != token_type::identifier)
+        throw std::runtime_error("expected identifier in define");
+
+    add_stack_var(current_token_ptr->value);
+
+    push_coarity(coarity_type::one);
+
+    current_token_ptr++;
+    compile_expression();
+
+    program.append_opcode(opcode::add_stack_var);
+
+    pop_coarity();
+
+    consume_token(token_type::right_paren);
+}
+
 void compiler::compile_procedure_call() {
     push_coarity(coarity_type::one);
 
@@ -111,6 +134,8 @@ void compiler::compile_expression() {
                 compile_lambda();
             else if (current_token_ptr->value == "set!")
                 compile_set();
+            else if (current_token_ptr->value == "define")
+                compile_define();
             else if (current_token_ptr->value == "quote")
                 compile_external_representation();
             else
@@ -303,6 +328,9 @@ void compiler::compile_set() {
 
     if (eof())
         throw std::runtime_error("unexpected eof after set!");
+
+    if (current_token_ptr->type != token_type::identifier)
+        throw std::runtime_error("expected identifier in set!");
 
     const auto [var_type, var_id] = get_var_type_and_id(current_token_ptr->value);
 

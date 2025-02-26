@@ -58,7 +58,7 @@ struct compiler {
     }
 
     void compile_boolean();
-    void compile_procedure_call();
+    void compile_define();
     void compile_expression();
     void compile_external_representation();
     void compile_external_representation_abbr();
@@ -67,6 +67,7 @@ struct compiler {
     void compile_lambda();
     void compile_number();
     void compile_pair();
+    void compile_procedure_call();
     void compile_set();
 
     /**
