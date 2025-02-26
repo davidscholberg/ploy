@@ -10,6 +10,8 @@
  * std::visit.
  *
  * The overloads can be lambdas provided in an initializer list at object instantiaion.
+ *
+ * This was copied from https://en.cppreference.com/w/cpp/utility/variant/visit2
  */
 template<class... Ts>
 struct overload : Ts... {
@@ -68,7 +70,8 @@ struct stack_value_overload : Ts... {
 /**
  * Represents a callable object with overloads for each type contained within stack_value for the
  * purpose of generating external representations (i.e. strings) of stack_values. Meant to be used
- * with std::visit.
+ * with std::visit. ShowSchemeValuePtr determines whether or not a scheme_value_ptr is marked as a
+ * pointer or just displayed as the underlying object.
  */
 template <bool ShowSchemeValuePtr>
 struct stack_value_formatter_overload {
