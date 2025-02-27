@@ -5,20 +5,17 @@
 (newline)
 ;; 2
 
-((lambda (cont x)
-   (set!
-     x
-     (call/cc
-       (lambda (c)
-         (set! cont c)
-         x)))
-   (display x)
-   (newline)
-   (if (eqv? x 0)
-     x
-     (cont (- x 1))))
- #f
- 3)
+(define cont #f)
+(define
+  x
+  (call/cc
+    (lambda (c)
+      (set! cont c)
+      3)))
+(display x)
+(newline)
+(if (> x 0)
+  (cont (- x 1)))
 ;; 3
 ;; 2
 ;; 1

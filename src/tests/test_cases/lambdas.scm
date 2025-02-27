@@ -1,9 +1,12 @@
-(display ((lambda (x) (* x x)) 5))
+(define square (lambda (x)
+                 (* x x)))
+(display (square 5))
 (newline)
 ;; 25
 
-(display ((lambda (f) (f 5))
-          (lambda (x) (* x x))))
+(define call-with-5 (lambda (f)
+                      (f 5)))
+(display (call-with-5 square))
 (newline)
 ;; 25
 

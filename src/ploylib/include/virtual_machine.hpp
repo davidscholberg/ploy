@@ -11,7 +11,12 @@ void builtin_cdr(void* vm_void_ptr, uint8_t argc);
 void builtin_cons(void* vm_void_ptr, uint8_t argc);
 void builtin_display(void* vm_void_ptr, uint8_t argc);
 void builtin_divide(void* vm_void_ptr, uint8_t argc);
+void builtin_equal_numeric(void* vm_void_ptr, uint8_t argc);
 void builtin_eqv(void* vm_void_ptr, uint8_t argc);
+void builtin_greater(void* vm_void_ptr, uint8_t argc);
+void builtin_greater_equal(void* vm_void_ptr, uint8_t argc);
+void builtin_less(void* vm_void_ptr, uint8_t argc);
+void builtin_less_equal(void* vm_void_ptr, uint8_t argc);
 void builtin_minus(void* vm_void_ptr, uint8_t argc);
 void builtin_multiply(void* vm_void_ptr, uint8_t argc);
 void builtin_newline(void* vm_void_ptr, uint8_t argc);
@@ -24,7 +29,12 @@ inline const std::unordered_map<std::string_view, builtin_procedure> bp_name_to_
     {"cdr", builtin_cdr},
     {"display", builtin_display},
     {"/", builtin_divide},
+    {"=", builtin_equal_numeric},
     {"eqv?", builtin_eqv},
+    {">", builtin_greater},
+    {">=", builtin_greater_equal},
+    {"<", builtin_less},
+    {"<=", builtin_less_equal},
     {"-", builtin_minus},
     {"*", builtin_multiply},
     {"newline", builtin_newline},

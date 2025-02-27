@@ -129,6 +129,53 @@ static void native_fold_left(void* vm_void_ptr, uint8_t argc) {
     vm->pop_excess(1);
 }
 
+template <template <typename> typename Op>
+static void native_monotonic_reduce(void* vm_void_ptr, uint8_t argc) {
+    virtual_machine* vm = static_cast<virtual_machine*>(vm_void_ptr);
+
+    constexpr stack_value_overload binary_visitor{
+        [](const int64_t& a, const int64_t& b) -> bool {
+            return Op<int64_t>()(a, b);
+        },
+        [](const int64_t& a, const double& b) -> bool {
+            return Op<double>()(a, b);
+        },
+        [](const double& a, const int64_t& b) -> bool {
+            return Op<double>()(a, b);
+        },
+        [](const double& a, const double& b) -> bool {
+            return Op<double>()(a, b);
+        },
+        [](const auto&, const auto&) -> bool {
+            throw std::runtime_error("unexpected type for binary op");
+        },
+    };
+
+    if (argc < 2)
+        throw std::runtime_error("need at least two args for this procedure");
+
+    // if vm coarity state is any, clear call frame and return immediately since this procedure
+    // produces no side effects.
+    if (vm->coarity_state == coarity_type::any) {
+        vm->clear_call_frame();
+        return;
+    }
+
+    size_t last_i = vm->stack.size() - 1;
+    size_t first_i = last_i + 1 - argc;
+
+    bool reduction = true;
+    for (size_t i = first_i; i < last_i; i++)
+        if (!std::visit(binary_visitor, vm->stack[i], vm->stack[i + 1])) {
+            reduction = false;
+            break;
+        }
+
+    vm->stack[first_i - 1] = reduction;
+
+    vm->pop_excess(1);
+}
+
 void builtin_car(void* vm_void_ptr, uint8_t argc) {
     virtual_machine* vm = static_cast<virtual_machine*>(vm_void_ptr);
 
@@ -228,6 +275,10 @@ void builtin_divide(void* vm_void_ptr, uint8_t argc) {
     native_fold_left<std::divides, 1, false>(vm_void_ptr, argc);
 }
 
+void builtin_equal_numeric(void* vm_void_ptr, uint8_t argc) {
+    native_monotonic_reduce<std::equal_to>(vm_void_ptr, argc);
+}
+
 void builtin_eqv(void* vm_void_ptr, uint8_t argc) {
     virtual_machine* vm = static_cast<virtual_machine*>(vm_void_ptr);
 
@@ -256,6 +307,22 @@ void builtin_eqv(void* vm_void_ptr, uint8_t argc) {
     vm->stack[first_i - 1] = std::visit(eqv_visitor, vm->stack[first_i], vm->stack[second_i]);
 
     vm->pop_excess(1);
+}
+
+void builtin_greater(void* vm_void_ptr, uint8_t argc) {
+    native_monotonic_reduce<std::greater>(vm_void_ptr, argc);
+}
+
+void builtin_greater_equal(void* vm_void_ptr, uint8_t argc) {
+    native_monotonic_reduce<std::greater_equal>(vm_void_ptr, argc);
+}
+
+void builtin_less(void* vm_void_ptr, uint8_t argc) {
+    native_monotonic_reduce<std::less>(vm_void_ptr, argc);
+}
+
+void builtin_less_equal(void* vm_void_ptr, uint8_t argc) {
+    native_monotonic_reduce<std::less_equal>(vm_void_ptr, argc);
 }
 
 void builtin_minus(void* vm_void_ptr, uint8_t argc) {
