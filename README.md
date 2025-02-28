@@ -45,9 +45,7 @@ Writing performant code is a secondary goal. Making implementation decisions for
 
 ### Requirements
 
-To build ploy, you'll need [CMake](https://cmake.org/) and a C++ compiler that supports C++23. [GCC](https://gcc.gnu.org/) is known to work, and [MSVC](https://en.wikipedia.org/wiki/Microsoft_Visual_C%2B%2B) and [Clang](https://clang.llvm.org/) are supported in theory (have not been tested yet).
-
-Also, if you want to run the tests, you'll need Bash and Sed.
+To build ploy, you'll need [CMake](https://cmake.org/) and a C++ compiler that supports C++23. [GCC](https://gcc.gnu.org/), [MSVC](https://en.wikipedia.org/wiki/Microsoft_Visual_C%2B%2B), and [Clang](https://clang.llvm.org/) are all supported.
 
 ### Build on the cli
 

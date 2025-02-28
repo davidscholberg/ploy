@@ -28,7 +28,7 @@ uint8_t compiler::add_shared_var(const std::string_view& var_name, size_t scope_
     if (ctx.shared_vars.contains(var_name))
         throw std::runtime_error("shared var already exists");
 
-    uint8_t var_id = ctx.shared_vars.size();
+    uint8_t var_id = static_cast<uint8_t>(ctx.shared_vars.size());
 
     if (var_id == std::numeric_limits<uint8_t>::max())
         throw std::runtime_error("shared var limit exceeded");
@@ -46,7 +46,7 @@ void compiler::add_stack_var(const std::string_view& var_name) {
     if (ctx.stack_vars.contains(var_name))
         throw std::runtime_error("stack var already exists");
 
-    uint8_t var_id = ctx.stack_vars.size();
+    uint8_t var_id = static_cast<uint8_t>(ctx.stack_vars.size());
 
     if (var_id == std::numeric_limits<uint8_t>::max())
         throw std::runtime_error("stack var limit exceeded");

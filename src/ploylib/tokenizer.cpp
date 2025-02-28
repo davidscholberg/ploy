@@ -6,7 +6,7 @@
 #include "tokenizer.hpp"
 
 static bool is_whitespace(const char c) {
-    return c == ' ' or c == '\n';
+    return c == ' ' or c == '\n' or c == '\r';
 }
 
 /**
@@ -239,7 +239,8 @@ tokenizer::tokenizer(const char* const source) {
                 push_expression();
                 break;
             case ';':
-                while (*current_ptr != '\n' and *current_ptr != 0)
+                current_ptr++;
+                while (*current_ptr != '\n' and *current_ptr != '\r' and *current_ptr != 0)
                     current_ptr++;
                 break;
             default:

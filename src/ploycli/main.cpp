@@ -13,14 +13,12 @@
  * Reads the file at the given file path into a string.
  */
 std::string file_to_string(const char* const file_path) {
-    std::string str;
-
     std::ifstream f(file_path);
     f.seekg(0, std::ios::end);
     size_t file_size = f.tellg();
     f.seekg(0);
 
-    str.reserve(file_size);
+    std::string str(file_size, 0);
     f.read(str.data(), file_size);
 
     return str;

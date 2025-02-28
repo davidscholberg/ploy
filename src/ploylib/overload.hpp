@@ -75,7 +75,7 @@ struct stack_value_overload : Ts... {
  */
 template <bool ShowSchemeValuePtr>
 struct stack_value_formatter_overload {
-    std::string operator()(const empty_list& v) const {
+    std::string operator()(const empty_list&) const {
         return std::format("()");
     }
 

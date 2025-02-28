@@ -49,7 +49,7 @@ static constexpr stack_value_overload boolean_eval_visitor{
         return a;
     },
     // Any value that's not explicitly a boolean false is considered true.
-    [](const auto& a) -> bool {
+    [](const auto&) -> bool {
         return true;
     },
 };
@@ -75,10 +75,10 @@ static void native_fold_left(void* vm_void_ptr, uint8_t argc) {
             return stack_value{Op<int64_t>()(a, b)};
         },
         [](const int64_t& a, const double& b) -> stack_value {
-            return stack_value{Op<double>()(a, b)};
+            return stack_value{Op<double>()(static_cast<double>(a), b)};
         },
         [](const double& a, const int64_t& b) -> stack_value {
-            return stack_value{Op<double>()(a, b)};
+            return stack_value{Op<double>()(a, static_cast<double>(b))};
         },
         [](const double& a, const double& b) -> stack_value {
             return stack_value{Op<double>()(a, b)};
@@ -138,10 +138,10 @@ static void native_monotonic_reduce(void* vm_void_ptr, uint8_t argc) {
             return Op<int64_t>()(a, b);
         },
         [](const int64_t& a, const double& b) -> bool {
-            return Op<double>()(a, b);
+            return Op<double>()(static_cast<double>(a), b);
         },
         [](const double& a, const int64_t& b) -> bool {
-            return Op<double>()(a, b);
+            return Op<double>()(a, static_cast<double>(b));
         },
         [](const double& a, const double& b) -> bool {
             return Op<double>()(a, b);
@@ -607,12 +607,12 @@ void virtual_machine::execute_call() {
 
     const auto& callable_variant = std::visit(stack_value_to_scheme_value_visitor, stack[current_call_frame.frame_index]);
     if (const auto* bp_ptr = std::get_if<builtin_procedure>(&callable_variant)) {
-        (*bp_ptr)(this, argc);
+        (*bp_ptr)(this, static_cast<uint8_t>(argc));
 
         call_frame_stack.pop_back();
     } else if (const auto* lambda_ptr_ptr = std::get_if<lambda_ptr>(&callable_variant)) {
         current_call_frame.executing_lambda = *lambda_ptr_ptr;
-        current_call_frame.stack_var_count = argc;
+        current_call_frame.stack_var_count = static_cast<uint8_t>(argc);
         current_call_frame.return_ptr = instruction_ptr;
         current_call_frame.return_coarity_state = coarity_state;
         instruction_ptr = begin_instruction_ptr + (*lambda_ptr_ptr)->bytecode_offset - 1;

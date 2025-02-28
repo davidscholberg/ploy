@@ -18,7 +18,7 @@ uint8_t bytecode::add_constant(const scheme_constant& new_constant) {
     }
 
     constants.emplace_back(new_constant);
-    const auto i = constants.size() - 1;
+    const auto i = static_cast<uint8_t>(constants.size() - 1);
     constant_to_index_map[new_constant] = i;
     return i;
 }
@@ -50,7 +50,7 @@ void bytecode::backpatch_jump(const size_t backpatch_index) {
     if (jump_size > std::numeric_limits<jump_size_type>::max())
         throw std::runtime_error("jump size is too large for its type");
 
-    write_value<jump_size_type>(jump_size, current_code_block.data() + backpatch_index);
+    write_value<jump_size_type>(static_cast<jump_size_type>(jump_size), current_code_block.data() + backpatch_index);
 }
 
 void bytecode::concat_blocks() {
@@ -170,7 +170,7 @@ std::string bytecode::disassemble() const {
     const uint8_t* instruction_ptr = code.data();
     std::string str;
 
-    while (instruction_ptr - code.data() < code.size()) {
+    while (static_cast<size_t>(instruction_ptr - code.data()) < code.size()) {
         switch (*instruction_ptr) {
             case static_cast<uint8_t>(opcode::add_stack_var):
                 str += disassembly_line_formatter(instruction_ptr, "");
