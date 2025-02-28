@@ -61,13 +61,13 @@ cmake --build build/Debug
 Run ploy on a scheme program:
 
 ```bash
-./build/Debug/src/ploycli/ploy /path/to/blah.scm
+./build/Debug/src/cli/ploy /path/to/blah.scm
 ```
 
 View bytecode disassembly of a scheme program:
 
 ```bash
-./build/Debug/src/ploycli/ploy -d /path/to/blah.scm
+./build/Debug/src/cli/ploy -d /path/to/blah.scm
 ```
 
 Run tests:

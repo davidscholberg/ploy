@@ -1,3 +1,3 @@
-add_subdirectory(ploylib)
-add_subdirectory(ploycli)
+add_subdirectory(lib)
+add_subdirectory(cli)
 add_subdirectory(tests)
