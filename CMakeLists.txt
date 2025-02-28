@@ -2,8 +2,8 @@ cmake_minimum_required(VERSION 3.16)
 
 project(
     ploy
-    VERSION 1.0.0
-    DESCRIPTION "Scheme-like language interpreter for funsies"
+    VERSION 0.0.1
+    DESCRIPTION "Scheme interpreter implemented as a stack-based bytecode virtual machine and written in C++23"
 )
 
 function(setup_project_target target)
