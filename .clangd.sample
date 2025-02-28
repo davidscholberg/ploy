@@ -1,0 +1,5 @@
+# Rename this file to .clangd and edit as needed.
+
+# Workaround for this shit: https://github.com/clangd/clangd/issues/1850
+CompileFlags:
+  Add: ["-std:c++latest", "/clang:-std=c++23"]
