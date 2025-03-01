@@ -257,6 +257,8 @@ struct lambda {
 /**
  * Structure for scheme pair types. Car is the first element in the pair, and cdr is the second
  * element.
+ *
+ * TODO: need to handle reference cycles properly to prevent memory leaks.
  */
 struct pair {
     scheme_value car;

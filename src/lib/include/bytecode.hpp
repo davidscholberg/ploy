@@ -38,6 +38,10 @@ enum class opcode : uint8_t {
     /**
      * Capture a stack variable. Has one argument that is an index into the currently executing
      * lambda's stack variables indicating the variable to capture.
+     *
+     * NOTE: when a lambda captures itself, the stack var count will not be updated until after the
+     * capture, making the var index arg for this opcode technically out of bounds. This is okay for
+     * now since the stack var count is only used when lambdas return.
      */
     capture_stack_var,
 

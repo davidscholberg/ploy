@@ -20,6 +20,7 @@ void builtin_less_equal(void* vm_void_ptr, uint8_t argc);
 void builtin_minus(void* vm_void_ptr, uint8_t argc);
 void builtin_multiply(void* vm_void_ptr, uint8_t argc);
 void builtin_newline(void* vm_void_ptr, uint8_t argc);
+void builtin_null(void* vm_void_ptr, uint8_t argc);
 void builtin_odd(void* vm_void_ptr, uint8_t argc);
 void builtin_plus(void* vm_void_ptr, uint8_t argc);
 
@@ -38,6 +39,7 @@ inline const std::unordered_map<std::string_view, builtin_procedure> bp_name_to_
     {"-", builtin_minus},
     {"*", builtin_multiply},
     {"newline", builtin_newline},
+    {"null?", builtin_null},
     {"odd?", builtin_odd},
     {"+", builtin_plus},
 };

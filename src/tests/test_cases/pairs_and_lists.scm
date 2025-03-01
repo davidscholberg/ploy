@@ -25,3 +25,12 @@
 (display (car (cdr '(1 . (2 . 3)))))
 (newline)
 ;; 2
+
+(define reduce
+  (lambda (f ident vals)
+    (if (null? vals)
+      ident
+      (reduce f (f ident (car vals)) (cdr vals)))))
+
+(display (reduce (lambda (x y) (+ x y 1)) 0 '(1 2 3 4 5)))
+;; 20

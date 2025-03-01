@@ -429,7 +429,7 @@ std::pair<variable_type, uint8_t> compiler::get_var_type_and_id(const std::strin
     }
 
     if (scope_depth == 0)
-        throw std::runtime_error("var name not found");
+        throw std::runtime_error(std::format("var name not found: {}", name));
 
     const auto [var_type, var_id] = get_var_type_and_id(name, scope_depth - 1);
 

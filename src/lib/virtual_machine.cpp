@@ -345,6 +345,34 @@ void builtin_newline(void* vm_void_ptr, uint8_t argc) {
     vm->clear_call_frame();
 }
 
+void builtin_null(void* vm_void_ptr, uint8_t argc) {
+    virtual_machine* vm = static_cast<virtual_machine*>(vm_void_ptr);
+
+    constexpr stack_value_overload unary_visitor{
+        [](const empty_list&) -> stack_value {
+            return true;
+        },
+        [](const auto&) -> stack_value {
+            return false;
+        },
+    };
+
+    if (argc != 1)
+        throw std::runtime_error("procedure can only take one arg");
+
+    // if vm coarity state is any, clear call frame and return immediately since this procedure
+    // produces no side effects.
+    if (vm->coarity_state == coarity_type::any) {
+        vm->clear_call_frame();
+        return;
+    }
+
+    size_t last_i = vm->stack.size() - 1;
+
+    vm->stack[last_i - 1] = std::visit(unary_visitor, vm->stack[last_i]);
+    vm->pop_excess(1);
+}
+
 void builtin_odd(void* vm_void_ptr, uint8_t argc) {
     virtual_machine* vm = static_cast<virtual_machine*>(vm_void_ptr);
 
@@ -492,12 +520,19 @@ void virtual_machine::execute_capture_shared_var() {
     if (shared_var_index >= executing_lambda->captures.size())
         throw std::runtime_error("parent lambda capture index out of bounds for capture");
 
-    const auto current_lambda_variant = stack.back();
-    if (auto* current_lambda_ptr = std::get_if<lambda_ptr>(&current_lambda_variant)) {
-        (*current_lambda_ptr)->captures.emplace_back(executing_lambda->captures[shared_var_index]);
-    } else {
-        throw std::runtime_error("expected lambda on stack top for capture");
-    }
+    const auto& value = executing_lambda->captures[shared_var_index];
+
+    // TODO: if capture is self-referential, make it a weak_ptr in the captures vector.
+    static const stack_value_overload lambda_visitor{
+        [&value](const lambda_ptr& l_ptr) -> void {
+            l_ptr->captures.emplace_back(value);
+        },
+        [](const auto&) -> void {
+            throw std::runtime_error("expected lambda on stack top for capture");
+        },
+    };
+
+    std::visit(lambda_visitor, stack.back());
 }
 
 void virtual_machine::execute_capture_stack_var() {
@@ -507,15 +542,20 @@ void virtual_machine::execute_capture_stack_var() {
     if (stack_var_index >= stack.size())
         throw std::runtime_error("stack empty for capture");
 
-    scheme_value_ptr value = std::visit(stack_value_to_scheme_value_ptr_visitor, stack[stack_var_index]);
+    const auto& value = std::visit(stack_value_to_scheme_value_ptr_visitor, stack[stack_var_index]);
     stack[stack_var_index] = value;
 
-    const auto current_lambda_variant = stack.back();
-    if (auto* current_lambda_ptr = std::get_if<lambda_ptr>(&current_lambda_variant)) {
-        (*current_lambda_ptr)->captures.emplace_back(value);
-    } else {
-        throw std::runtime_error("expected lambda on stack top for capture");
-    }
+    // TODO: if capture is self-referential, make it a weak_ptr in the captures vector.
+    static const stack_value_overload lambda_visitor{
+        [&value](const lambda_ptr& l_ptr) -> void {
+            l_ptr->captures.emplace_back(value);
+        },
+        [](const auto&) -> void {
+            throw std::runtime_error("expected lambda on stack top for capture");
+        },
+    };
+
+    std::visit(lambda_visitor, stack.back());
 }
 
 void virtual_machine::execute_expect_argc() {
